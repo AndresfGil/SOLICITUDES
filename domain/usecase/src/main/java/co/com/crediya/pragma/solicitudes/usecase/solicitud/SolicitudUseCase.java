@@ -19,7 +19,7 @@ public class SolicitudUseCase {
 
         return tipoPrestamoRepository.existsById(solicitud.getIdTipoPrestamo())
                 .flatMap(exists -> {
-                    if (!exists) {
+                    if (Boolean.FALSE.equals(exists)) {
                         return Mono.error(new TipoPrestamoNotFoundException(solicitud.getIdTipoPrestamo()));
                     }
                     return solicitudRepository.saveSolicitud(solicitud);

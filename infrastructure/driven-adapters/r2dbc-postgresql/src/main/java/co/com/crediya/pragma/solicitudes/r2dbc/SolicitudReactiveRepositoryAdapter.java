@@ -23,10 +23,10 @@ public class SolicitudReactiveRepositoryAdapter extends ReactiveAdapterOperation
     private final TransactionalOperator transactionalOperator;
 
 
-    public SolicitudReactiveRepositoryAdapter(SolicitudReactiveRepository repository, ObjectMapper mapper, TransactionalOperator transactionalOperator, TransactionalOperator transactionalOperator1) {
+    public SolicitudReactiveRepositoryAdapter(SolicitudReactiveRepository repository, ObjectMapper mapper, TransactionalOperator transactionalOperator) {
 
         super(repository, mapper, d -> mapper.map(d, Solicitud.class));
-        this.transactionalOperator = transactionalOperator1;
+        this.transactionalOperator = transactionalOperator;
     }
 
     @Override

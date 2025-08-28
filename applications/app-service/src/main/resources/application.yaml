@@ -46,7 +46,7 @@ adapters:
     port: 3306
     database: "solicitudes"
     username: "root"
-    password: "andres98"
+    password: "root"
 
 management:
   endpoints:

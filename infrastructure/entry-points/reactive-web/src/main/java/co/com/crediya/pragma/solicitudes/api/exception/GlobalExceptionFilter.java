@@ -25,7 +25,7 @@ public class GlobalExceptionFilter implements HandlerFilterFunction<ServerRespon
     public Mono<ServerResponse> filter(ServerRequest request, HandlerFunction<ServerResponse> next) {
         return next.handle(request)
                 .onErrorResume(BaseException.class, ex -> {
-                    log.warn("Handled BaseException code={} status={} path={} msg={}",
+                    log.warn("Excepcion controlada code={} status={} path={} msg={}",
                             ex.getErrorCode(), ex.getStatusCode(), request.path(), ex.getMessage());
                     return ServerResponse
                             .status(ex.getStatusCode())
@@ -46,7 +46,7 @@ public class GlobalExceptionFilter implements HandlerFilterFunction<ServerRespon
 
                     var validationEx = new ValidationException(errors);
 
-                    log.warn("Validation exception: {}", errors);
+                    log.warn("Excepcion de validacion: {}", errors);
 
                     return ServerResponse.status(validationEx.getStatusCode())
                             .bodyValue(ErrorResponse.builder()
