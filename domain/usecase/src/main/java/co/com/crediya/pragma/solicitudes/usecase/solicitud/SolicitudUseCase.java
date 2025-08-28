@@ -1,12 +1,16 @@
 package co.com.crediya.pragma.solicitudes.usecase.solicitud;
 
+import co.com.crediya.pragma.solicitudes.model.exception.MontoFueraDeRangoException;
 import co.com.crediya.pragma.solicitudes.model.exception.TipoPrestamoNotFoundException;
 import co.com.crediya.pragma.solicitudes.model.solicitud.Solicitud;
 import co.com.crediya.pragma.solicitudes.model.solicitud.gateways.SolicitudRepository;
 import co.com.crediya.pragma.solicitudes.model.solicitud.gateways.TipoPrestamoRepository;
+import co.com.crediya.pragma.solicitudes.model.tipoprestamo.TipoPrestamo;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.math.BigDecimal;
 
 @RequiredArgsConstructor
 public class SolicitudUseCase {
@@ -17,11 +21,16 @@ public class SolicitudUseCase {
     public Mono<Solicitud> saveSolicitud(Solicitud solicitud) {
         solicitud.setIdEstado(1L);
 
-        return tipoPrestamoRepository.existsById(solicitud.getIdTipoPrestamo())
-                .flatMap(exists -> {
-                    if (Boolean.FALSE.equals(exists)) {
-                        return Mono.error(new TipoPrestamoNotFoundException(solicitud.getIdTipoPrestamo()));
+        return tipoPrestamoRepository.findById(solicitud.getIdTipoPrestamo())
+                .switchIfEmpty(Mono.error(new TipoPrestamoNotFoundException(solicitud.getIdTipoPrestamo())))
+                .flatMap(tipoPrestamo -> {
+                    BigDecimal montoMinimo = new BigDecimal(tipoPrestamo.getMontoMinimo());
+                    BigDecimal montoMaximo = new BigDecimal(tipoPrestamo.getMontoMaximo());
+                    
+                    if (solicitud.getMonto().compareTo(montoMinimo) < 0 || solicitud.getMonto().compareTo(montoMaximo) > 0) {
+                        return Mono.error(new MontoFueraDeRangoException(solicitud.getMonto(), montoMinimo, montoMaximo));
                     }
+                    
                     return solicitudRepository.saveSolicitud(solicitud);
                 });
     }
