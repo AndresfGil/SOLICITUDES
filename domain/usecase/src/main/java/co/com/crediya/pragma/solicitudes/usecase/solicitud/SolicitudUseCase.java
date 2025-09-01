@@ -5,7 +5,6 @@ import co.com.crediya.pragma.solicitudes.model.exception.TipoPrestamoNotFoundExc
 import co.com.crediya.pragma.solicitudes.model.solicitud.Solicitud;
 import co.com.crediya.pragma.solicitudes.model.solicitud.gateways.SolicitudRepository;
 import co.com.crediya.pragma.solicitudes.model.solicitud.gateways.TipoPrestamoRepository;
-import co.com.crediya.pragma.solicitudes.model.tipoprestamo.TipoPrestamo;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -17,9 +16,10 @@ public class SolicitudUseCase {
 
     private final SolicitudRepository solicitudRepository;
     private final TipoPrestamoRepository tipoPrestamoRepository;
+    private final Long estadoSolicitudPendiente = 1L;
 
     public Mono<Solicitud> saveSolicitud(Solicitud solicitud) {
-        solicitud.setIdEstado(1L);
+        solicitud.setIdEstado(estadoSolicitudPendiente);
 
         return tipoPrestamoRepository.findById(solicitud.getIdTipoPrestamo())
                 .switchIfEmpty(Mono.error(new TipoPrestamoNotFoundException(solicitud.getIdTipoPrestamo())))

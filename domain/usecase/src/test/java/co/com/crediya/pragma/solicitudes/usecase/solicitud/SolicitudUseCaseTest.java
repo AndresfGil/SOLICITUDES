@@ -61,11 +61,9 @@ class SolicitudUseCaseTest {
     @Test
     @DisplayName("Debería guardar una solicitud exitosamente cuando el monto está en rango")
     void shouldSaveSolicitudSuccessfullyWhenAmountIsInRange() {
-        // Given
         when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
         when(solicitudRepository.saveSolicitud(any(Solicitud.class))).thenReturn(Mono.just(solicitud));
 
-        // When & Then
         StepVerifier.create(solicitudUseCase.saveSolicitud(solicitud))
                 .expectNext(solicitud)
                 .verifyComplete();
@@ -74,10 +72,8 @@ class SolicitudUseCaseTest {
     @Test
     @DisplayName("Debería lanzar excepción cuando el tipo de préstamo no existe")
     void shouldThrowExceptionWhenTipoPrestamoDoesNotExist() {
-        // Given
         when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.empty());
 
-        // When & Then
         StepVerifier.create(solicitudUseCase.saveSolicitud(solicitud))
                 .expectError(TipoPrestamoNotFoundException.class)
                 .verify();
@@ -86,14 +82,12 @@ class SolicitudUseCaseTest {
     @Test
     @DisplayName("Debería lanzar excepción cuando el monto está por debajo del mínimo")
     void shouldThrowExceptionWhenAmountIsBelowMinimum() {
-        // Given
         Solicitud solicitudMontoBajo = solicitud.toBuilder()
                 .monto(new BigDecimal("300000")) // Por debajo del mínimo de 500000
                 .build();
 
         when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
 
-        // When & Then
         StepVerifier.create(solicitudUseCase.saveSolicitud(solicitudMontoBajo))
                 .expectError(MontoFueraDeRangoException.class)
                 .verify();
@@ -102,14 +96,12 @@ class SolicitudUseCaseTest {
     @Test
     @DisplayName("Debería lanzar excepción cuando el monto está por encima del máximo")
     void shouldThrowExceptionWhenAmountIsAboveMaximum() {
-        // Given
         Solicitud solicitudMontoAlto = solicitud.toBuilder()
                 .monto(new BigDecimal("6000000")) // Por encima del máximo de 5000000
                 .build();
 
         when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
 
-        // When & Then
         StepVerifier.create(solicitudUseCase.saveSolicitud(solicitudMontoAlto))
                 .expectError(MontoFueraDeRangoException.class)
                 .verify();
@@ -118,7 +110,6 @@ class SolicitudUseCaseTest {
     @Test
     @DisplayName("Debería permitir monto exactamente en el límite mínimo")
     void shouldAllowAmountExactlyAtMinimumLimit() {
-        // Given
         Solicitud solicitudMontoMinimo = solicitud.toBuilder()
                 .monto(new BigDecimal("500000")) // Exactamente el mínimo
                 .build();
@@ -126,7 +117,6 @@ class SolicitudUseCaseTest {
         when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
         when(solicitudRepository.saveSolicitud(any(Solicitud.class))).thenReturn(Mono.just(solicitudMontoMinimo));
 
-        // When & Then
         StepVerifier.create(solicitudUseCase.saveSolicitud(solicitudMontoMinimo))
                 .expectNext(solicitudMontoMinimo)
                 .verifyComplete();
@@ -135,7 +125,6 @@ class SolicitudUseCaseTest {
     @Test
     @DisplayName("Debería permitir monto exactamente en el límite máximo")
     void shouldAllowAmountExactlyAtMaximumLimit() {
-        // Given
         Solicitud solicitudMontoMaximo = solicitud.toBuilder()
                 .monto(new BigDecimal("5000000")) // Exactamente el máximo
                 .build();
@@ -143,7 +132,6 @@ class SolicitudUseCaseTest {
         when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
         when(solicitudRepository.saveSolicitud(any(Solicitud.class))).thenReturn(Mono.just(solicitudMontoMaximo));
 
-        // When & Then
         StepVerifier.create(solicitudUseCase.saveSolicitud(solicitudMontoMaximo))
                 .expectNext(solicitudMontoMaximo)
                 .verifyComplete();
@@ -152,11 +140,9 @@ class SolicitudUseCaseTest {
     @Test
     @DisplayName("Debería establecer el estado en 1 al guardar")
     void shouldSetEstadoTo1WhenSaving() {
-        // Given
         when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
         when(solicitudRepository.saveSolicitud(any(Solicitud.class))).thenReturn(Mono.just(solicitud));
 
-        // When & Then
         StepVerifier.create(solicitudUseCase.saveSolicitud(solicitud))
                 .expectNextMatches(savedSolicitud -> savedSolicitud.getIdEstado().equals(1L))
                 .verifyComplete();
@@ -165,10 +151,8 @@ class SolicitudUseCaseTest {
     @Test
     @DisplayName("Debería encontrar todas las solicitudes")
     void shouldFindAllSolicitudes() {
-        // Given
         when(solicitudRepository.findAllSolicitudes()).thenReturn(Flux.just(solicitud));
 
-        // When & Then
         StepVerifier.create(solicitudUseCase.findAllSolicitudes())
                 .expectNext(solicitud)
                 .verifyComplete();
@@ -177,11 +161,9 @@ class SolicitudUseCaseTest {
     @Test
     @DisplayName("Debería encontrar una solicitud por ID")
     void shouldFindSolicitudById() {
-        // Given
         Long id = 1L;
         when(solicitudRepository.findSolicitudById(id)).thenReturn(Mono.just(solicitud));
 
-        // When & Then
         StepVerifier.create(solicitudUseCase.findSolicitudById(id))
                 .expectNext(solicitud)
                 .verifyComplete();
