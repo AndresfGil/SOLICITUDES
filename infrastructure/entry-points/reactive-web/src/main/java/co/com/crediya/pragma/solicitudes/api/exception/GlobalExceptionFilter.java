@@ -2,7 +2,6 @@ package co.com.crediya.pragma.solicitudes.api.exception;
 
 
 import co.com.crediya.pragma.solicitudes.model.exception.BaseException;
-import co.com.crediya.pragma.solicitudes.model.exception.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.NonNull;
@@ -13,8 +12,6 @@ import org.springframework.web.reactive.function.server.HandlerFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
-
-import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -42,20 +39,58 @@ public class GlobalExceptionFilter implements HandlerFilterFunction<ServerRespon
                 .onErrorResume(WebExchangeBindException.class, ex -> {
                     var errors = ex.getFieldErrors().stream()
                             .map(err -> err.getField() + ": " + err.getDefaultMessage())
-                            .collect(Collectors.toList());
+                            .toList();
 
-                    var validationEx = new ValidationException(errors);
+                    log.warn("Excepcion de validacion en path={}: {}", request.path(), errors);
 
-                    log.warn("Excepcion de validacion: {}", errors);
-
-                    return ServerResponse.status(validationEx.getStatusCode())
+                    return ServerResponse.status(HttpStatus.BAD_REQUEST)
                             .bodyValue(ErrorResponse.builder()
-                                    .errorCode(validationEx.getErrorCode())
-                                    .tittle(validationEx.getTitle())
-                                    .message(validationEx.getMessage())
-                                    .errors(validationEx.getErrors())
-                                    .status(HttpStatus.valueOf(validationEx.getStatusCode()))
-                                    .timestamp(validationEx.getTimestamp())
+                                    .errorCode("VALIDATION_ERROR")
+                                    .tittle("Error de validación")
+                                    .message("Los datos enviados no son válidos")
+                                    .errors(errors)
+                                    .status(HttpStatus.BAD_REQUEST)
+                                    .timestamp(java.time.LocalDateTime.now())
+                                    .build());
+                })
+                .onErrorResume(RuntimeException.class, ex -> {
+                    log.error("Error inesperado en path={} msg={}", request.path(), ex.getMessage(), ex);
+                    
+                    // Errores específicos de autenticación
+                    if (ex.getMessage() != null && ex.getMessage().contains("Error al validar token")) {
+                        return ServerResponse.status(HttpStatus.UNAUTHORIZED)
+                                .bodyValue(ErrorResponse.builder()
+                                        .errorCode("INVALID_TOKEN")
+                                        .tittle("Token inválido")
+                                        .message("Token de autenticación inválido o expirado")
+                                        .errors(java.util.List.of(ex.getMessage()))
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .timestamp(java.time.LocalDateTime.now())
+                                        .build());
+                    }
+                    
+                    // Errores de comunicación con servicios externos
+                    if (ex.getMessage() != null && ex.getMessage().contains("Connection refused")) {
+                        return ServerResponse.status(HttpStatus.SERVICE_UNAVAILABLE)
+                                .bodyValue(ErrorResponse.builder()
+                                        .errorCode("SERVICE_UNAVAILABLE")
+                                        .tittle("Servicio no disponible")
+                                        .message("El servicio de autenticación no está disponible")
+                                        .errors(java.util.List.of("Error de conexión con servicio externo"))
+                                        .status(HttpStatus.SERVICE_UNAVAILABLE)
+                                        .timestamp(java.time.LocalDateTime.now())
+                                        .build());
+                    }
+                    
+                    // Error genérico
+                    return ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .bodyValue(ErrorResponse.builder()
+                                    .errorCode("INTERNAL_ERROR")
+                                    .tittle("Error interno")
+                                    .message("Error interno del servidor")
+                                    .errors(java.util.List.of("Error inesperado del sistema"))
+                                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                    .timestamp(java.time.LocalDateTime.now())
                                     .build());
                 });
     }
