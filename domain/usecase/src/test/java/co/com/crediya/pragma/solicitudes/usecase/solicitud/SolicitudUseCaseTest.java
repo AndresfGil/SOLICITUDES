@@ -19,6 +19,8 @@ import reactor.test.StepVerifier;
 import java.math.BigDecimal;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -148,24 +150,72 @@ class SolicitudUseCaseTest {
                 .verifyComplete();
     }
 
-    @Test
-    @DisplayName("Debería encontrar todas las solicitudes")
-    void shouldFindAllSolicitudes() {
-        when(solicitudRepository.findAllSolicitudes()).thenReturn(Flux.just(solicitud));
+//    @Test
+//    @DisplayName("Debería encontrar todas las solicitudes")
+//    void shouldFindAllSolicitudes() {
+//        when(solicitudRepository.findAllSolicitudes()).thenReturn(Flux.just(solicitud));
+//
+//        StepVerifier.create(solicitudUseCase.findAllSolicitudes())
+//                .expectNext(solicitud)
+//                .verifyComplete();
+//    }
+//
+//
+//
+//    @Test
+//    @DisplayName("Debería retornar Flux vacío cuando no hay solicitudes")
+//    void shouldReturnEmptyFluxWhenNoSolicitudes() {
+//        when(solicitudRepository.findAllSolicitudes()).thenReturn(Flux.empty());
+//
+//        StepVerifier.create(solicitudUseCase.findAllSolicitudes())
+//                .verifyComplete();
+//    }
 
-        StepVerifier.create(solicitudUseCase.findAllSolicitudes())
-                .expectNext(solicitud)
-                .verifyComplete();
+    @Test
+    @DisplayName("Debería manejar error del repositorio al guardar")
+    void shouldHandleRepositoryErrorWhenSaving() {
+        when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
+        when(solicitudRepository.saveSolicitud(any(Solicitud.class)))
+                .thenReturn(Mono.error(new RuntimeException("Error de base de datos")));
+
+        StepVerifier.create(solicitudUseCase.saveSolicitud(solicitud))
+                .expectError(RuntimeException.class)
+                .verify();
     }
 
-    @Test
-    @DisplayName("Debería encontrar una solicitud por ID")
-    void shouldFindSolicitudById() {
-        Long id = 1L;
-        when(solicitudRepository.findSolicitudById(id)).thenReturn(Mono.just(solicitud));
 
-        StepVerifier.create(solicitudUseCase.findSolicitudById(id))
-                .expectNext(solicitud)
+    
+    @Test
+    @DisplayName("Debería encontrar solicitudes paginadas exitosamente")
+    void shouldFindSolicitudesPaginatedSuccessfully() {
+        // Crear resultado paginado mock
+        SolicitudRepository.PaginatedResult<Solicitud> paginatedResult = 
+            new SolicitudRepository.PaginatedResult<>(
+                Flux.just(solicitud),
+                1L, // totalElements
+                1,  // totalPages
+                0,  // currentPage
+                10, // pageSize
+                false, // hasNext
+                false  // hasPrevious
+            );
+        
+        when(solicitudRepository.findAllSolicitudes(anyInt(), anyInt(), anyString(), anyString()))
+                .thenReturn(Mono.just(paginatedResult));
+
+        StepVerifier.create(solicitudUseCase.findAllSolicitudes(0, 10, "idSolicitud", "ASC"))
+                .expectNext(paginatedResult)
                 .verifyComplete();
+    }
+    
+    @Test
+    @DisplayName("Debería manejar error del repositorio en paginación")
+    void shouldHandleRepositoryErrorInPagination() {
+        when(solicitudRepository.findAllSolicitudes(anyInt(), anyInt(), anyString(), anyString()))
+                .thenReturn(Mono.error(new RuntimeException("Error en paginación")));
+
+        StepVerifier.create(solicitudUseCase.findAllSolicitudes(0, 10, "idSolicitud", "ASC"))
+                .expectError(RuntimeException.class)
+                .verify();
     }
 }

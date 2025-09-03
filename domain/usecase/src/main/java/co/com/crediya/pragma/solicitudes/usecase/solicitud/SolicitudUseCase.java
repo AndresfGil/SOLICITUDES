@@ -35,11 +35,9 @@ public class SolicitudUseCase {
                 });
     }
 
-    public Flux<Solicitud> findAllSolicitudes() {
-        return solicitudRepository.findAllSolicitudes();
-    }
 
-    public Mono<Solicitud> findSolicitudById(Long id) {
-        return solicitudRepository.findSolicitudById(id);
+    public Mono<SolicitudRepository.PaginatedResult<Solicitud>> findAllSolicitudes(
+            int page, int size, String sortBy, String sortDirection) {
+        return solicitudRepository.findAllSolicitudes(page, size, sortBy, sortDirection);
     }
 }

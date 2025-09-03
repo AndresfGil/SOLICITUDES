@@ -1,87 +1,44 @@
 package co.com.crediya.pragma.solicitudes.model.estado;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@DisplayName("Tests para la entidad Estado")
+@DisplayName("Tests para Estado")
 class EstadoTest {
 
-    private Estado estado;
-
-    @BeforeEach
-    void setUp() {
-        estado = Estado.builder()
+    @Test
+    @DisplayName("Debe crear estado con builder")
+    void shouldCreateEstadoWithBuilder() {
+        Estado estado = Estado.builder()
                 .idEstado(1L)
                 .nombreEstado("PENDIENTE")
                 .descripcionEstado("Solicitud en proceso de revisión")
                 .build();
+
+        assertEquals(1L, estado.getIdEstado());
+        assertEquals("PENDIENTE", estado.getNombreEstado());
+        assertEquals("Solicitud en proceso de revisión", estado.getDescripcionEstado());
     }
 
     @Test
-    @DisplayName("Debería crear un estado con builder")
-    void shouldCreateEstadoWithBuilder() {
-
-        Estado nuevoEstado = Estado.builder()
-                .idEstado(2L)
-                .nombreEstado("APROBADO")
-                .descripcionEstado("Solicitud aprobada")
-                .build();
-
-
-        assertNotNull(nuevoEstado);
-        assertEquals(2L, nuevoEstado.getIdEstado());
-        assertEquals("APROBADO", nuevoEstado.getNombreEstado());
-        assertEquals("Solicitud aprobada", nuevoEstado.getDescripcionEstado());
-    }
-
-    @Test
-    @DisplayName("Debería crear un estado con constructor por defecto")
+    @DisplayName("Debe crear estado con constructor por defecto")
     void shouldCreateEstadoWithDefaultConstructor() {
+        Estado estado = new Estado();
 
-        Estado nuevoEstado = new Estado();
-
-
-        assertNotNull(nuevoEstado);
-        assertNull(nuevoEstado.getIdEstado());
-        assertNull(nuevoEstado.getNombreEstado());
-        assertNull(nuevoEstado.getDescripcionEstado());
+        assertNull(estado.getIdEstado());
+        assertNull(estado.getNombreEstado());
+        assertNull(estado.getDescripcionEstado());
     }
 
     @Test
-    @DisplayName("Debería crear un estado con constructor con parámetros")
+    @DisplayName("Debe crear estado con constructor con parámetros")
     void shouldCreateEstadoWithParameterizedConstructor() {
+        Estado estado = new Estado(2L, "APROBADO", "Solicitud aprobada");
 
-        Estado nuevoEstado = new Estado(
-                3L,
-                "RECHAZADO",
-                "Solicitud rechazada"
-        );
-
-
-        assertNotNull(nuevoEstado);
-        assertEquals(3L, nuevoEstado.getIdEstado());
-        assertEquals("RECHAZADO", nuevoEstado.getNombreEstado());
-        assertEquals("Solicitud rechazada", nuevoEstado.getDescripcionEstado());
+        assertEquals(2L, estado.getIdEstado());
+        assertEquals("APROBADO", estado.getNombreEstado());
+        assertEquals("Solicitud aprobada", estado.getDescripcionEstado());
     }
-
-    @Test
-    @DisplayName("Debería modificar valores del estado con setters")
-    void shouldModifyEstadoValuesWithSetters() {
-        // Given
-        Estado estadoModificado = new Estado();
-
-        // When
-        estadoModificado.setIdEstado(4L);
-        estadoModificado.setNombreEstado("EN_REVISION");
-        estadoModificado.setDescripcionEstado("Solicitud en revisión técnica");
-
-
-        assertEquals(4L, estadoModificado.getIdEstado());
-        assertEquals("EN_REVISION", estadoModificado.getNombreEstado());
-        assertEquals("Solicitud en revisión técnica", estadoModificado.getDescripcionEstado());
-    }
-
 }

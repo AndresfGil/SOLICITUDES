@@ -77,63 +77,36 @@ class SolicitudRepositoryTest {
                 .verifyComplete();
     }
 
-    @Test
-    @DisplayName("Debería encontrar todas las solicitudes")
-    void shouldFindAllSolicitudes() {
+//    @Test
+//    @DisplayName("Debería encontrar todas las solicitudes")
+//    void shouldFindAllSolicitudes() {
+//
+//        List<Solicitud> solicitudes = List.of(solicitud1, solicitud2, solicitud3);
+//
+//        when(solicitudRepository.findAllSolicitudes())
+//                .thenReturn(Flux.fromIterable(solicitudes));
+//
+//
+//        StepVerifier.create(solicitudRepository.findAllSolicitudes())
+//                .expectNext(solicitud1)
+//                .expectNext(solicitud2)
+//                .expectNext(solicitud3)
+//                .verifyComplete();
+//    }
+//
+//    @Test
+//    @DisplayName("Debería encontrar todas las solicitudes cuando la lista está vacía")
+//    void shouldFindAllSolicitudesWhenEmpty() {
+//
+//        when(solicitudRepository.findAllSolicitudes())
+//                .thenReturn(Flux.empty());
+//
+//
+//        StepVerifier.create(solicitudRepository.findAllSolicitudes())
+//                .verifyComplete();
+//    }
+//
 
-        List<Solicitud> solicitudes = List.of(solicitud1, solicitud2, solicitud3);
-
-        when(solicitudRepository.findAllSolicitudes())
-                .thenReturn(Flux.fromIterable(solicitudes));
-
-
-        StepVerifier.create(solicitudRepository.findAllSolicitudes())
-                .expectNext(solicitud1)
-                .expectNext(solicitud2)
-                .expectNext(solicitud3)
-                .verifyComplete();
-    }
-
-    @Test
-    @DisplayName("Debería encontrar todas las solicitudes cuando la lista está vacía")
-    void shouldFindAllSolicitudesWhenEmpty() {
-
-        when(solicitudRepository.findAllSolicitudes())
-                .thenReturn(Flux.empty());
-
-
-        StepVerifier.create(solicitudRepository.findAllSolicitudes())
-                .verifyComplete();
-    }
-
-    @Test
-    @DisplayName("Debería encontrar una solicitud por ID exitosamente")
-    void shouldFindSolicitudByIdSuccessfully() {
-
-        Long solicitudId = 1L;
-
-        when(solicitudRepository.findSolicitudById(solicitudId))
-                .thenReturn(Mono.just(solicitud1));
-
-
-        StepVerifier.create(solicitudRepository.findSolicitudById(solicitudId))
-                .expectNext(solicitud1)
-                .verifyComplete();
-    }
-
-    @Test
-    @DisplayName("Debería retornar Mono vacío cuando no encuentra la solicitud por ID")
-    void shouldReturnEmptyMonoWhenSolicitudNotFound() {
-
-        Long nonExistentId = 999L;
-
-        when(solicitudRepository.findSolicitudById(nonExistentId))
-                .thenReturn(Mono.empty());
-
-
-        StepVerifier.create(solicitudRepository.findSolicitudById(nonExistentId))
-                .verifyComplete();
-    }
 
     @Test
     @DisplayName("Debería manejar errores al guardar solicitud")
@@ -151,34 +124,19 @@ class SolicitudRepositoryTest {
                 .verify();
     }
 
-    @Test
-    @DisplayName("Debería manejar errores al buscar todas las solicitudes")
-    void shouldHandleErrorWhenFindingAllSolicitudes() {
+//    @Test
+//    @DisplayName("Debería manejar errores al buscar todas las solicitudes")
+//    void shouldHandleErrorWhenFindingAllSolicitudes() {
+//
+//        RuntimeException error = new RuntimeException("Error de conexión");
+//
+//        when(solicitudRepository.findAllSolicitudes())
+//                .thenReturn(Flux.error(error));
+//
+//
+//        StepVerifier.create(solicitudRepository.findAllSolicitudes())
+//                .expectError(RuntimeException.class)
+//                .verify();
+//    }
 
-        RuntimeException error = new RuntimeException("Error de conexión");
-
-        when(solicitudRepository.findAllSolicitudes())
-                .thenReturn(Flux.error(error));
-
-
-        StepVerifier.create(solicitudRepository.findAllSolicitudes())
-                .expectError(RuntimeException.class)
-                .verify();
-    }
-
-    @Test
-    @DisplayName("Debería manejar errores al buscar solicitud por ID")
-    void shouldHandleErrorWhenFindingSolicitudById() {
-
-        Long solicitudId = 1L;
-        RuntimeException error = new RuntimeException("Error de consulta");
-
-        when(solicitudRepository.findSolicitudById(solicitudId))
-                .thenReturn(Mono.error(error));
-
-
-        StepVerifier.create(solicitudRepository.findSolicitudById(solicitudId))
-                .expectError(RuntimeException.class)
-                .verify();
-    }
 }

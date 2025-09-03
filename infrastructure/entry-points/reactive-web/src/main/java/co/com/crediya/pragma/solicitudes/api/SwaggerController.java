@@ -63,27 +63,4 @@ public class SwaggerController {
         throw new UnsupportedOperationException("Este endpoint debe ser llamado a través de WebFlux");
     }
 
-    @GetMapping("/{id}")
-    @Operation(
-            summary = "Obtener solicitud por ID",
-            description = "Retorna una solicitud específica por su ID",
-            responses = {
-                    @ApiResponse(
-                            responseCode = "200",
-                            description = "Solicitud encontrada exitosamente",
-                            content = @Content(schema = @Schema(implementation = Solicitud.class))
-                    ),
-                    @ApiResponse(
-                            responseCode = "404",
-                            description = "Solicitud no encontrada"
-                    ),
-                    @ApiResponse(
-                            responseCode = "500",
-                            description = "Error interno del servidor"
-                    )
-            }
-    )
-    public Solicitud getSolicitudById(@PathVariable Long id) {
-        throw new UnsupportedOperationException("Este endpoint debe ser llamado a través de WebFlux");
-    }
 }

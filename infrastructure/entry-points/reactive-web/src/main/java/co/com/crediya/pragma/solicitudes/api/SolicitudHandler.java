@@ -5,7 +5,7 @@ import co.com.crediya.pragma.solicitudes.api.helper.DtoValidator;
 import co.com.crediya.pragma.solicitudes.api.helper.HttpReactiveLogger;
 import co.com.crediya.pragma.solicitudes.api.helper.SolicitudMapper;
 import co.com.crediya.pragma.solicitudes.api.helper.SolicitudResponseMapper;
-import co.com.crediya.pragma.solicitudes.model.solicitud.Solicitud;
+import co.com.crediya.pragma.solicitudes.api.helper.PaginatedResponseMapper;
 import co.com.crediya.pragma.solicitudes.usecase.auth.AuthUseCase;
 import co.com.crediya.pragma.solicitudes.usecase.solicitud.SolicitudUseCase;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +27,7 @@ public class SolicitudHandler {
     private final DtoValidator  dtoValidator;
     private final SolicitudMapper solicitudMapper;
     private final SolicitudResponseMapper solicitudResponseMapper;
+    private final PaginatedResponseMapper paginatedResponseMapper;
 
     public Mono<ServerResponse> listenSaveSolicitud(ServerRequest req) {
         log.info("Iniciando creación de solicitud - Path: {}", req.path());
@@ -48,22 +49,30 @@ public class SolicitudHandler {
         return HttpReactiveLogger.logMono(req, flow, "crear solicitud");
     }
 
-
-    public Mono<ServerResponse> listenGetAllSolicitudes(ServerRequest req) {
-        log.info("Iniciando consulta de solicitudes - Path: {}", req.path());
-
+    public Mono<ServerResponse> listenGetSolicitudes(ServerRequest req) {
+        log.info("Iniciando consulta de solicitudes paginadas - Path: {}", req.path());
+        
+        int page = Integer.parseInt(req.queryParam("page").orElse("0"));
+        int size = Integer.parseInt(req.queryParam("size").orElse("10"));
+        String sortBy = req.queryParam("sortBy").orElse("idSolicitud");
+        String sortDirection = req.queryParam("sortDirection").orElse("ASC");
+        if (page < 0) page = 0;
+        if (size < 1 || size > 100) size = 10;
+        int finalPage = page;
+        int finalSize = size;
         Mono<ServerResponse> flow = extractTokenFromRequest(req)
                 .doOnNext(token -> log.info("Token extraído para validación de administrador"))
                 .flatMap(authUseCase::validateAdminAdvisor)
                 .doOnNext(userInfo -> log.info("Usuario ADMIN/ASESOR validado: {}", userInfo.email()))
-                .flatMap(userInfo -> ServerResponse.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(solicitudUseCase.findAllSolicitudes(), Solicitud.class))
-                .doOnError(error -> log.error("Error en consulta de solicitudes: {}", error.getMessage()));
+                .flatMap(userInfo -> solicitudUseCase.findAllSolicitudes(finalPage, finalSize, sortBy, sortDirection)
+                        .flatMap(paginatedResponseMapper::toPaginatedResponse)
+                        .flatMap(response -> ServerResponse.ok()
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .bodyValue(response)))
+                .doOnError(error -> log.error("Error en consulta de solicitudes paginadas: {}", error.getMessage()));
 
-        return HttpReactiveLogger.logMono(req, flow, "lista de solicitudes");
+        return HttpReactiveLogger.logMono(req, flow, "solicitudes paginadas");
     }
-
 
     private Mono<String> extractTokenFromRequest(ServerRequest req) {
         log.info("Extrayendo token de headers: {}", req.headers().firstHeader(HttpHeaders.AUTHORIZATION));
@@ -73,22 +82,4 @@ public class SolicitudHandler {
                 .switchIfEmpty(Mono.error(new RuntimeException("Token no proporcionado")));
     }
 
-
-    public Mono<ServerResponse> listenGetSolicitudById(ServerRequest req) {
-        log.info("Iniciando consulta de solicitud por ID - Path: {}", req.path());
-        Long id = Long.valueOf(req.pathVariable("id"));
-
-        Mono<ServerResponse> flow = extractTokenFromRequest(req)
-                .doOnNext(token -> log.info("Token extraído para validación de administrador"))
-                .flatMap(authUseCase::validateAdminAdvisor)
-                .doOnNext(userInfo -> log.info("Usuario ADMIN/ASESOR validado: {}", userInfo.email()))
-                .flatMap(userInfo -> solicitudUseCase.findSolicitudById(id)
-                        .flatMap(solicitud -> ServerResponse.ok()
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .bodyValue(solicitud))
-                        .switchIfEmpty(ServerResponse.notFound().build()))
-                .doOnError(error -> log.error("Error en consulta de solicitud por ID: {}", error.getMessage()));
-
-        return HttpReactiveLogger.logMono(req, flow, "traer solicitud por id");
-    }
 }

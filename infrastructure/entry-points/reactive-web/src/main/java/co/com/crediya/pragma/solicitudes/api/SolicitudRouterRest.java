@@ -17,14 +17,13 @@ public class SolicitudRouterRest implements SolicitudControllerDocs {
     @Bean
     public RouterFunction<ServerResponse> routerFunction(SolicitudHandler handler, GlobalExceptionFilter filter) {
         return route(POST("/api/v1/solicitudes"), handler::listenSaveSolicitud)
-                .andRoute(GET("/api/v1/solicitudes"), handler::listenGetAllSolicitudes)
-                .andRoute(GET("/api/v1/solicitudes/{id}"), handler::listenGetSolicitudById)
+                .andRoute(GET("/api/v1/solicitudes"), handler::listenGetSolicitudes)
                 .filter(filter);
     }
     @Override
     public RouterFunction<ServerResponse> routerFunction(SolicitudHandler handler) {
         return route(POST("/api/v1/solicitudes"), handler::listenSaveSolicitud)
-                .andRoute(GET("/api/v1/solicitudes"), handler::listenGetAllSolicitudes);
+                .andRoute(GET("/api/v1/solicitudes"), handler::listenGetSolicitudes);
     }
 
 }

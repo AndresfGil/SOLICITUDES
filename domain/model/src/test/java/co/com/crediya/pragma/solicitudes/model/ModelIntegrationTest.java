@@ -189,36 +189,36 @@ class ModelIntegrationTest {
                 .verify();
     }
 
-    @Test
-    @DisplayName("Debería buscar y filtrar solicitudes por estado")
-    void shouldSearchAndFilterSolicitudesByEstado() {
-        Solicitud solicitudPendiente = solicitud.toBuilder()
-                .idSolicitud(1L)
-                .idEstado(1L) // PENDIENTE
-                .build();
-
-        Solicitud solicitudAprobada = solicitud.toBuilder()
-                .idSolicitud(2L)
-                .idEstado(2L) // APROBADA
-                .build();
-
-        Solicitud solicitudRechazada = solicitud.toBuilder()
-                .idSolicitud(3L)
-                .idEstado(3L) // RECHAZADA
-                .build();
-
-        List<Solicitud> todasLasSolicitudes = Arrays.asList(solicitudPendiente, solicitudAprobada, solicitudRechazada);
-
-        when(solicitudRepository.findAllSolicitudes())
-                .thenReturn(Flux.fromIterable(todasLasSolicitudes));
-
-        StepVerifier.create(
-                solicitudRepository.findAllSolicitudes()
-                        .filter(sol -> sol.getIdEstado().equals(1L))
-        )
-                .expectNext(solicitudPendiente)
-                .verifyComplete();
-    }
+//    @Test
+//    @DisplayName("Debería buscar y filtrar solicitudes por estado")
+//    void shouldSearchAndFilterSolicitudesByEstado() {
+//        Solicitud solicitudPendiente = solicitud.toBuilder()
+//                .idSolicitud(1L)
+//                .idEstado(1L) // PENDIENTE
+//                .build();
+//
+//        Solicitud solicitudAprobada = solicitud.toBuilder()
+//                .idSolicitud(2L)
+//                .idEstado(2L) // APROBADA
+//                .build();
+//
+//        Solicitud solicitudRechazada = solicitud.toBuilder()
+//                .idSolicitud(3L)
+//                .idEstado(3L) // RECHAZADA
+//                .build();
+//
+//        List<Solicitud> todasLasSolicitudes = Arrays.asList(solicitudPendiente, solicitudAprobada, solicitudRechazada);
+//
+//        when(solicitudRepository.findAllSolicitudes())
+//                .thenReturn(Flux.fromIterable(todasLasSolicitudes));
+//
+//        StepVerifier.create(
+//                solicitudRepository.findAllSolicitudes()
+//                        .filter(sol -> sol.getIdEstado().equals(1L))
+//        )
+//                .expectNext(solicitudPendiente)
+//                .verifyComplete();
+//    }
 
 
     @Test
