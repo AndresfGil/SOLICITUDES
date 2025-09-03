@@ -12,12 +12,10 @@ public class SpringDocConfig {
         return GroupedOpenApi.builder()
                 .group("solicitudes")
                 .pathsToMatch("/api/v1/solicitudes")
-                .addOpenApiCustomizer(openApi -> {
-                    openApi.getInfo()
-                            .title("API de Solicitudes")
-                            .version("1.0.0")
-                            .description("API para gestión de solicitudes de préstamo");
-                })
+                .addOpenApiCustomizer(openApi -> openApi.getInfo()
+                        .title("API de Solicitudes")
+                        .version("1.0.0")
+                        .description("API para gestión de solicitudes de préstamo"))
                 .build();
     }
 }

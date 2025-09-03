@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springdoc.core.annotations.RouterOperation;
 import org.springdoc.core.annotations.RouterOperations;
 import org.springframework.http.MediaType;
@@ -28,12 +29,15 @@ public interface SolicitudControllerDocs {
                     operation = @Operation(
                             operationId = "createSolicitud",
                             summary = "Crear solicitud de préstamo",
-                            description = "Crea una nueva solicitud de préstamo con validación de tipo de préstamo",
+                            description = "Crea una nueva solicitud de préstamo. Solo usuarios con rol CLIENTE pueden crear solicitudes.",
+                            security = @SecurityRequirement(name = "bearerAuth"),
                             requestBody = @RequestBody(required = true, content = @Content(schema = @Schema(implementation = SolicitudDTO.class))),
                             responses = {
                                     @ApiResponse(responseCode = "200", description = "Solicitud creada exitosamente",
                                             content = @Content(schema = @Schema(implementation = SolicitudResponseDTO.class))),
                                     @ApiResponse(responseCode = "400", description = "Datos de solicitud inválidos o tipo de préstamo no encontrado"),
+                                    @ApiResponse(responseCode = "401", description = "Token no proporcionado o inválido"),
+                                    @ApiResponse(responseCode = "403", description = "Usuario no autorizado - Solo usuarios CLIENTE pueden crear solicitudes"),
                                     @ApiResponse(responseCode = "500", description = "Error interno del servidor")
                             }
                     )
@@ -47,10 +51,13 @@ public interface SolicitudControllerDocs {
                     operation = @Operation(
                             operationId = "getAllSolicitudes",
                             summary = "Obtener todas las solicitudes",
-                            description = "Retorna una lista de todas las solicitudes de préstamo",
+                            description = "Retorna una lista de todas las solicitudes de préstamo. Solo usuarios con rol ADMIN o ASESOR pueden consultar solicitudes.",
+                            security = @SecurityRequirement(name = "bearerAuth"),
                             responses = {
                                     @ApiResponse(responseCode = "200", description = "Lista de solicitudes obtenida exitosamente",
                                             content = @Content(schema = @Schema(implementation = Solicitud.class))),
+                                    @ApiResponse(responseCode = "401", description = "Token no proporcionado o inválido"),
+                                    @ApiResponse(responseCode = "403", description = "Usuario no autorizado - Solo usuarios ADMIN/ASESOR pueden consultar solicitudes"),
                                     @ApiResponse(responseCode = "500", description = "Error interno del servidor")
                             }
                     )
@@ -64,10 +71,13 @@ public interface SolicitudControllerDocs {
                     operation = @Operation(
                             operationId = "getSolicitudById",
                             summary = "Obtener solicitud por ID",
-                            description = "Retorna una solicitud específica por su ID",
+                            description = "Retorna una solicitud específica por su ID. Solo usuarios con rol ADMIN o ASESOR pueden consultar solicitudes.",
+                            security = @SecurityRequirement(name = "bearerAuth"),
                             responses = {
                                     @ApiResponse(responseCode = "200", description = "Solicitud encontrada exitosamente",
                                             content = @Content(schema = @Schema(implementation = Solicitud.class))),
+                                    @ApiResponse(responseCode = "401", description = "Token no proporcionado o inválido"),
+                                    @ApiResponse(responseCode = "403", description = "Usuario no autorizado - Solo usuarios ADMIN/ASESOR pueden consultar solicitudes"),
                                     @ApiResponse(responseCode = "404", description = "Solicitud no encontrada"),
                                     @ApiResponse(responseCode = "500", description = "Error interno del servidor")
                             }

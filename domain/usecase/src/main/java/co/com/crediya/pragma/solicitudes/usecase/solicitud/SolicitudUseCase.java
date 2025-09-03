@@ -16,10 +16,10 @@ public class SolicitudUseCase {
 
     private final SolicitudRepository solicitudRepository;
     private final TipoPrestamoRepository tipoPrestamoRepository;
-    private final Long estadoSolicitudPendiente = 1L;
+    private static final Long ESTADO_SOLICITUD_PENDIENTE  = 1L;
 
     public Mono<Solicitud> saveSolicitud(Solicitud solicitud) {
-        solicitud.setIdEstado(estadoSolicitudPendiente);
+        solicitud.setIdEstado(ESTADO_SOLICITUD_PENDIENTE );
 
         return tipoPrestamoRepository.findById(solicitud.getIdTipoPrestamo())
                 .switchIfEmpty(Mono.error(new TipoPrestamoNotFoundException(solicitud.getIdTipoPrestamo())))

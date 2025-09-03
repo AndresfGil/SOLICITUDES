@@ -1,6 +1,7 @@
 package co.com.crediya.pragma.solicitudes.api.dto;
 
 import jakarta.validation.constraints.*;
+
 import java.math.BigDecimal;
 
 public record SolicitudDTO(
