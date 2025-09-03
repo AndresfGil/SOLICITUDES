@@ -56,6 +56,7 @@ public class SolicitudHandler {
         int size = Integer.parseInt(req.queryParam("size").orElse("10"));
         String sortBy = req.queryParam("sortBy").orElse("idSolicitud");
         String sortDirection = req.queryParam("sortDirection").orElse("ASC");
+        
         if (page < 0) page = 0;
         if (size < 1 || size > 100) size = 10;
         int finalPage = page;
