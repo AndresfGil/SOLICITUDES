@@ -51,25 +51,26 @@ public class SolicitudHandler {
 
     public Mono<ServerResponse> listenGetSolicitudes(ServerRequest req) {
         log.info("Iniciando consulta de solicitudes paginadas - Path: {}", req.path());
-        
+
         int page = Integer.parseInt(req.queryParam("page").orElse("0"));
         int size = Integer.parseInt(req.queryParam("size").orElse("10"));
         String sortBy = req.queryParam("sortBy").orElse("idSolicitud");
         String sortDirection = req.queryParam("sortDirection").orElse("ASC");
-        
+
         if (page < 0) page = 0;
         if (size < 1 || size > 100) size = 10;
         int finalPage = page;
         int finalSize = size;
+
         Mono<ServerResponse> flow = extractTokenFromRequest(req)
                 .doOnNext(token -> log.info("Token extraído para validación de administrador"))
-                .flatMap(authUseCase::validateAdminAdvisor)
-                .doOnNext(userInfo -> log.info("Usuario ADMIN/ASESOR validado: {}", userInfo.email()))
-                .flatMap(userInfo -> solicitudUseCase.findAllSolicitudes(finalPage, finalSize, sortBy, sortDirection)
-                        .flatMap(paginatedResponseMapper::toPaginatedResponse)
-                        .flatMap(response -> ServerResponse.ok()
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .bodyValue(response)))
+                .flatMap(token -> authUseCase.validateAdminAdvisor(token)
+                        .doOnNext(userInfo -> log.info("Usuario ADMIN/ASESOR validado: {}", userInfo.email()))
+                        .flatMap(userInfo -> solicitudUseCase.findAllSolicitudes(finalPage, finalSize, sortBy, sortDirection, token)
+                                .flatMap(paginatedResult -> paginatedResponseMapper.toPaginatedResponse(paginatedResult))
+                                .flatMap(response -> ServerResponse.ok()
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .bodyValue(response))))
                 .doOnError(error -> log.error("Error en consulta de solicitudes paginadas: {}", error.getMessage()));
 
         return HttpReactiveLogger.logMono(req, flow, "solicitudes paginadas");

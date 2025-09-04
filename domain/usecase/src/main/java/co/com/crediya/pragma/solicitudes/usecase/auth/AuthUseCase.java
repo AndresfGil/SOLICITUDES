@@ -4,6 +4,7 @@ import co.com.crediya.pragma.solicitudes.model.auth.exception.UnauthorizedUserEx
 import co.com.crediya.pragma.solicitudes.model.auth.gateways.AuthenticationGateway;
 import co.com.crediya.pragma.solicitudes.model.auth.gateways.AuthenticationGateway.UserRoleInfo;
 import co.com.crediya.pragma.solicitudes.model.auth.gateways.AuthenticationGateway.UserCompleteInfo;
+
 import reactor.core.publisher.Mono;
 
 import java.util.logging.Logger;
@@ -21,7 +22,6 @@ public class AuthUseCase {
     public AuthUseCase(AuthenticationGateway authenticationGateway) {
         this.authenticationGateway = authenticationGateway;
     }
-
 
     public Mono<UserCompleteInfo> validateClientUserForSelf(String token, String documentId) {
         return authenticationGateway.validateToken(token)
@@ -55,7 +55,6 @@ public class AuthUseCase {
                         "Error en validación de usuario CLIENTE para sí mismo: " + error.getMessage()));
     }
 
-
     public Mono<UserRoleInfo> validateClientUser(String token) {
         return authenticationGateway.validateToken(token)
                 .doOnNext(userInfo -> LOGGER.info(() ->
@@ -74,8 +73,6 @@ public class AuthUseCase {
                 .doOnError(error -> LOGGER.severe(() ->
                         "Error en validación de usuario CLIENTE: " + error.getMessage()));
     }
-
-
 
     public Mono<UserRoleInfo> validateAdminAdvisor(String token) {
         LOGGER.info("Validando token de admin o asesor");

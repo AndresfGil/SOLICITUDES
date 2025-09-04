@@ -61,27 +61,6 @@ public interface SolicitudControllerDocs {
                                     @ApiResponse(responseCode = "500", description = "Error interno del servidor")
                             }
                     )
-            ),
-            @RouterOperation(
-                    path = "/api/v1/solicitudes/{id}",
-                    produces = MediaType.APPLICATION_JSON_VALUE,
-                    method = RequestMethod.GET,
-                    beanClass = SolicitudHandler.class,
-                    beanMethod = "listenGetSolicitudById",
-                    operation = @Operation(
-                            operationId = "getSolicitudById",
-                            summary = "Obtener solicitud por ID",
-                            description = "Retorna una solicitud específica por su ID. Solo usuarios con rol ADMIN o ASESOR pueden consultar solicitudes.",
-                            security = @SecurityRequirement(name = "bearerAuth"),
-                            responses = {
-                                    @ApiResponse(responseCode = "200", description = "Solicitud encontrada exitosamente",
-                                            content = @Content(schema = @Schema(implementation = Solicitud.class))),
-                                    @ApiResponse(responseCode = "401", description = "Token no proporcionado o inválido"),
-                                    @ApiResponse(responseCode = "403", description = "Usuario no autorizado - Solo usuarios ADMIN/ASESOR pueden consultar solicitudes"),
-                                    @ApiResponse(responseCode = "404", description = "Solicitud no encontrada"),
-                                    @ApiResponse(responseCode = "500", description = "Error interno del servidor")
-                            }
-                    )
             )
     })
     public RouterFunction<ServerResponse> routerFunction(SolicitudHandler handler);

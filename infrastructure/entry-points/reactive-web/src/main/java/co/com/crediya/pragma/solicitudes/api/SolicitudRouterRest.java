@@ -20,6 +20,7 @@ public class SolicitudRouterRest implements SolicitudControllerDocs {
                 .andRoute(GET("/api/v1/solicitudes"), handler::listenGetSolicitudes)
                 .filter(filter);
     }
+    
     @Override
     public RouterFunction<ServerResponse> routerFunction(SolicitudHandler handler) {
         return route(POST("/api/v1/solicitudes"), handler::listenSaveSolicitud)

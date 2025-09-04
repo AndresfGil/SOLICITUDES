@@ -2,6 +2,7 @@ package co.com.crediya.pragma.solicitudes.consumer;
 
 import co.com.crediya.pragma.solicitudes.consumer.dto.UserRoleValidationResponse;
 import co.com.crediya.pragma.solicitudes.consumer.dto.UserByEmailResponse;
+import co.com.crediya.pragma.solicitudes.consumer.dto.BatchUsersResponse;
 import co.com.crediya.pragma.solicitudes.model.auth.gateways.AuthenticationGateway;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,7 +11,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -66,4 +71,30 @@ public class AuthenticationRestAdapter implements AuthenticationGateway {
                 ))
                 .onErrorMap(throwable -> new RuntimeException("Error al consultar usuario: " + throwable.getMessage()));
     }
+
+
+    @Override
+    public Flux<UserSolicitudInfo> getUsersForPageWithToken(List<String> emails, String token) {
+        log.info("Consultando información de los usuarios listados con token: {}", emails.size());
+
+        return webClient
+                .post()
+                .uri("/api/v1/users/batch")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of("emails", emails))
+                .retrieve()
+                .bodyToMono(BatchUsersResponse.class)
+                .flatMapMany(response -> Flux.fromIterable(response.getUsers()))
+                .doOnNext(user -> log.info("Usuario encontrado: {}", user.getEmail()))
+                .doOnError(error -> log.error("Error al consultar usuarios: {}", error.getMessage()))
+                .map(user -> new UserSolicitudInfo(
+                        user.getName(),
+                        user.getEmail(),
+                        user.getBaseSalary()
+                ))
+                .onErrorMap(throwable -> new RuntimeException("Error al consultar usuarios: " + throwable.getMessage(), throwable));
+    }
+
+
 }
