@@ -79,7 +79,7 @@ public class AuthenticationRestAdapter implements AuthenticationGateway {
 
         return webClient
                 .post()
-                .uri("/api/v1/users/batch")
+                .uri(authenticationBaseUrl + "/api/v1/users/batch")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(Map.of("emails", emails))

@@ -1,5 +1,6 @@
 package co.com.crediya.pragma.solicitudes.model.solicitud;
 
+import co.com.crediya.pragma.solicitudes.model.page.SolicitudFieldsPage;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -67,6 +68,35 @@ public class SolicitudConUsuario {
         result.setNombreTipoPrestamo(nombreTipoPrestamo);
         result.setEstadoSolicitud(estadoSolicitud);
         result.setTasaInteres(tasaInteres);
+        
+        return result;
+    }
+    
+    public static SolicitudConUsuario fromSolicitudFieldsAndUser(
+            SolicitudFieldsPage solicitudFields,
+            co.com.crediya.pragma.solicitudes.model.auth.gateways.AuthenticationGateway.UserSolicitudInfo userInfo) {
+        
+        SolicitudConUsuario result = new SolicitudConUsuario();
+        
+        // datos básicos de solicitud desde SolicitudFieldsPage
+        result.setIdSolicitud(null); // No disponible en SolicitudFieldsPage
+        result.setMonto(solicitudFields.monto());
+        result.setPlazo(solicitudFields.plazo());
+        result.setEmail(solicitudFields.email());
+        result.setDocumentoIdentidad(null); // No disponible en SolicitudFieldsPage
+        result.setIdEstado(null); // No disponible en SolicitudFieldsPage
+        result.setIdTipoPrestamo(null); // No disponible en SolicitudFieldsPage
+        
+        // campos enriquecidos desde SolicitudFieldsPage
+        result.setNombreTipoPrestamo(solicitudFields.tipoPrestamo());
+        result.setEstadoSolicitud(solicitudFields.estado());
+        result.setTasaInteres(null); // No disponible en SolicitudFieldsPage
+        
+        // información del usuario
+        if (userInfo != null) {
+            result.setNombre(userInfo.name());
+            result.setSalarioBase(userInfo.baseSalary());
+        }
         
         return result;
     }

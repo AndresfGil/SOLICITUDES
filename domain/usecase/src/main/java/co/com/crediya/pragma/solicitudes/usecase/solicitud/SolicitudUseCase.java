@@ -3,17 +3,20 @@ package co.com.crediya.pragma.solicitudes.usecase.solicitud;
 import co.com.crediya.pragma.solicitudes.model.auth.gateways.AuthenticationGateway;
 import co.com.crediya.pragma.solicitudes.model.exception.MontoFueraDeRangoException;
 import co.com.crediya.pragma.solicitudes.model.exception.TipoPrestamoNotFoundException;
+import co.com.crediya.pragma.solicitudes.model.page.SolicitudFieldsPage;
+import co.com.crediya.pragma.solicitudes.model.page.SolicitudPage;
+import co.com.crediya.pragma.solicitudes.model.page.SolicitudPageRequest;
 import co.com.crediya.pragma.solicitudes.model.solicitud.Solicitud;
 import co.com.crediya.pragma.solicitudes.model.solicitud.SolicitudConUsuario;
+import co.com.crediya.pragma.solicitudes.model.solicitud.SolicitudConUsuarioResponse;
 import co.com.crediya.pragma.solicitudes.model.solicitud.gateways.SolicitudRepository;
 import co.com.crediya.pragma.solicitudes.model.solicitud.gateways.TipoPrestamoRepository;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.Flux;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 
 @RequiredArgsConstructor
@@ -41,69 +44,43 @@ public class SolicitudUseCase {
                 });
     }
 
-    public Mono<SolicitudRepository.PaginatedResult<SolicitudConUsuario>> findAllSolicitudes(
-            int page, int size, String sortBy, String sortDirection, String token) {
-        return solicitudRepository.findAllSolicitudes(page, size, sortBy, sortDirection)
+    public Mono<SolicitudPage<SolicitudConUsuarioResponse>> findAllSolicitudes(
+            SolicitudPageRequest req, String token) {
+
+        return solicitudRepository.page(req)
                 .flatMap(paged -> {
-                    return paged.content().collectList()
-                            .flatMap(solicitudes -> {
-                                List<String> emails = solicitudes.stream()
-                                        .map(Solicitud::getEmail)
-                                        .filter(email -> email != null && !email.isEmpty())
-                                        .distinct()
-                                        .collect(Collectors.toList());
+                    // Extraer emails únicos de las solicitudes
+                    List<String> emails = paged.getData().stream()
+                            .map(SolicitudFieldsPage::email)
+                            .filter(email -> email != null && !email.isBlank())
+                            .distinct()
+                            .toList();
 
 
-                                // Pedir batch al MS de usuarios (solo los de la página)
-                                return authenticationGateway.getUsersForPageWithToken(emails, token)
-                                        .collectMap(user -> user.email(), user -> user)
-                                        .onErrorReturn(java.util.Map.of())
-                                        .map(usersMap -> {
-                                            // combinar solicitudes con información de usuarios
-                                            List<SolicitudConUsuario> solicitudesEnriquecidas = solicitudes.stream()
-                                                    .map(solicitud -> {
-                                                        AuthenticationGateway.UserSolicitudInfo userInfo = 
-                                                                usersMap.get(solicitud.getEmail());
-                                                        
-                                                        // Si la solicitud tiene información enriquecida, extraerla
-                                                        String nombreTipoPrestamo = null;
-                                                        String estadoSolicitud = null;
-                                                        Integer tasaInteres = null;
-                                                        
-                                                        try {
-                                                            if (solicitud.getClass().getSimpleName().equals("SolicitudEnriquecida")) {
-                                                                nombreTipoPrestamo = (String) solicitud.getClass()
-                                                                    .getMethod("getNombreTipoPrestamo").invoke(solicitud);
-                                                                estadoSolicitud = (String) solicitud.getClass()
-                                                                    .getMethod("getEstadoSolicitud").invoke(solicitud);
-                                                                tasaInteres = (Integer) solicitud.getClass()
-                                                                    .getMethod("getTasaInteres").invoke(solicitud);
-                                                            }
-                                                        } catch (Exception e) {
+                    // Llamar al batch del MS autenticación
+                    return authenticationGateway.getUsersForPageWithToken(emails, token)
+                            .collectMap(AuthenticationGateway.UserSolicitudInfo::email, u -> u)
+                            .onErrorReturn(Map.of()) // fallback si falla
+                            .map(usersMap -> {
+                                // 3. Enriquecer cada solicitud y convertir a DTO de respuesta
+                                List<SolicitudConUsuarioResponse> enrichedItems = paged.getData().stream()
+                                        .map(s -> {
+                                            var userInfo = usersMap.get(s.email());
+                                            SolicitudConUsuario solicitudConUsuario = SolicitudConUsuario.fromSolicitudFieldsAndUser(s, userInfo);
+                                            return SolicitudConUsuarioResponse.fromSolicitudConUsuario(solicitudConUsuario);
+                                        })
+                                        .toList();
 
-                                                        }
-
-                                                        return SolicitudConUsuario.fromSolicitudAndUserWithEnrichment(
-                                                                solicitud, userInfo, nombreTipoPrestamo, estadoSolicitud, tasaInteres);
-                                                    })
-                                                    .collect(Collectors.toList());
-
-                                            Flux<SolicitudConUsuario> enrichedContent = Flux.fromIterable(solicitudesEnriquecidas);
-
-                                            return new SolicitudRepository.PaginatedResult<>(
-                                                    enrichedContent,
-                                                    paged.totalElements(),
-                                                    paged.totalPages(),
-                                                    paged.currentPage(),
-                                                    paged.pageSize(),
-                                                    paged.hasNext(),
-                                                    paged.hasPrevious()
-                                            );
-                                        });
+                                //  Retornar nueva página con usuarios
+                                return new SolicitudPage<>(
+                                        enrichedItems,
+                                        paged.getTotalRows(),
+                                        paged.getPageSize(),
+                                        paged.getPageNum(),
+                                        paged.getHasNext(),
+                                        paged.getSort()
+                                );
                             });
                 });
     }
-
-
-
 }

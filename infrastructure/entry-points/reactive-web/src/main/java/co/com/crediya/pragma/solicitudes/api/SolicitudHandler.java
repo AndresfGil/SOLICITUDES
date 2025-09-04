@@ -3,9 +3,10 @@ package co.com.crediya.pragma.solicitudes.api;
 import co.com.crediya.pragma.solicitudes.api.dto.SolicitudDTO;
 import co.com.crediya.pragma.solicitudes.api.helper.DtoValidator;
 import co.com.crediya.pragma.solicitudes.api.helper.HttpReactiveLogger;
+import co.com.crediya.pragma.solicitudes.api.helper.PageRequestBuilder;
 import co.com.crediya.pragma.solicitudes.api.helper.SolicitudMapper;
 import co.com.crediya.pragma.solicitudes.api.helper.SolicitudResponseMapper;
-import co.com.crediya.pragma.solicitudes.api.helper.PaginatedResponseMapper;
+import co.com.crediya.pragma.solicitudes.model.page.SolicitudPageRequest;
 import co.com.crediya.pragma.solicitudes.usecase.auth.AuthUseCase;
 import co.com.crediya.pragma.solicitudes.usecase.solicitud.SolicitudUseCase;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,7 @@ public class SolicitudHandler {
     private final DtoValidator  dtoValidator;
     private final SolicitudMapper solicitudMapper;
     private final SolicitudResponseMapper solicitudResponseMapper;
-    private final PaginatedResponseMapper paginatedResponseMapper;
+    private final PageRequestBuilder pageRequestBuilder;
 
     public Mono<ServerResponse> listenSaveSolicitud(ServerRequest req) {
         log.info("Iniciando creación de solicitud - Path: {}", req.path());
@@ -49,31 +50,24 @@ public class SolicitudHandler {
         return HttpReactiveLogger.logMono(req, flow, "crear solicitud");
     }
 
-    public Mono<ServerResponse> listenGetSolicitudes(ServerRequest req) {
-        log.info("Iniciando consulta de solicitudes paginadas - Path: {}", req.path());
-
-        int page = Integer.parseInt(req.queryParam("page").orElse("0"));
-        int size = Integer.parseInt(req.queryParam("size").orElse("10"));
-        String sortBy = req.queryParam("sortBy").orElse("idSolicitud");
-        String sortDirection = req.queryParam("sortDirection").orElse("ASC");
-
-        if (page < 0) page = 0;
-        if (size < 1 || size > 100) size = 10;
-        int finalPage = page;
-        int finalSize = size;
-
-        Mono<ServerResponse> flow = extractTokenFromRequest(req)
-                .doOnNext(token -> log.info("Token extraído para validación de administrador"))
-                .flatMap(token -> authUseCase.validateAdminAdvisor(token)
-                        .doOnNext(userInfo -> log.info("Usuario ADMIN/ASESOR validado: {}", userInfo.email()))
-                        .flatMap(userInfo -> solicitudUseCase.findAllSolicitudes(finalPage, finalSize, sortBy, sortDirection, token)
-                                .flatMap(paginatedResult -> paginatedResponseMapper.toPaginatedResponse(paginatedResult))
-                                .flatMap(response -> ServerResponse.ok()
-                                        .contentType(MediaType.APPLICATION_JSON)
-                                        .bodyValue(response))))
-                .doOnError(error -> log.error("Error en consulta de solicitudes paginadas: {}", error.getMessage()));
-
-        return HttpReactiveLogger.logMono(req, flow, "solicitudes paginadas");
+    public Mono<ServerResponse> listenGetSolicitudes(ServerRequest serverRequest) {
+        log.info("Iniciando consulta de solicitudes con usuarios - Path: {}", serverRequest.path());
+        
+        // Extraer parámetros de query usando el helper
+        SolicitudPageRequest pageRequest = pageRequestBuilder.buildFromQuery(serverRequest);
+        log.info("Parámetros de paginación extraídos: page={}, size={}, sort={}, query={}, status={}", 
+                pageRequest.getPage(), pageRequest.getSize(), pageRequest.getSort(), 
+                pageRequest.getQuery(), pageRequest.getStatus());
+        
+        return extractTokenFromRequest(serverRequest)
+                .flatMap(token -> {
+                    log.info("Token extraído para enriquecimiento de usuarios");
+                    return solicitudUseCase.findAllSolicitudes(pageRequest, token)
+                            .flatMap(sp -> ServerResponse.ok()
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .bodyValue(sp));
+                })
+                .doOnError(ex -> log.error("[GET_SOLICITUDES] Error: {}", ex.toString()));
     }
 
     private Mono<String> extractTokenFromRequest(ServerRequest req) {

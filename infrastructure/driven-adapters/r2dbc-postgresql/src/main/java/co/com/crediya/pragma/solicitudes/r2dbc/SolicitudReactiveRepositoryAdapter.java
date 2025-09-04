@@ -1,19 +1,20 @@
 package co.com.crediya.pragma.solicitudes.r2dbc;
+import co.com.crediya.pragma.solicitudes.model.page.SolicitudFieldsPage;
+import co.com.crediya.pragma.solicitudes.model.page.SolicitudPage;
+import co.com.crediya.pragma.solicitudes.model.page.SolicitudPageRequest;
 import co.com.crediya.pragma.solicitudes.model.solicitud.Solicitud;
 import co.com.crediya.pragma.solicitudes.model.solicitud.gateways.SolicitudRepository;
+import co.com.crediya.pragma.solicitudes.r2dbc.dto.SolicitudFieldsDto;
 import co.com.crediya.pragma.solicitudes.r2dbc.entities.SolicitudEntity;
-import co.com.crediya.pragma.solicitudes.r2dbc.entities.SolicitudEnriquecida;
 import co.com.crediya.pragma.solicitudes.r2dbc.helper.ReactiveAdapterOperations;
+import co.com.crediya.pragma.solicitudes.r2dbc.mapper.SolicitudPageMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.reactivecommons.utils.ObjectMapper;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import org.springframework.r2dbc.core.DatabaseClient;
+import java.util.List;
 
 @Slf4j
 @Repository
@@ -25,14 +26,13 @@ public class SolicitudReactiveRepositoryAdapter extends ReactiveAdapterOperation
 > implements SolicitudRepository {
 
     private final TransactionalOperator transactionalOperator;
-    private final DatabaseClient databaseClient;
+    private final SolicitudPageMapper  solicitudPageMapper;
 
-
-    public SolicitudReactiveRepositoryAdapter(SolicitudReactiveRepository repository, ObjectMapper mapper, TransactionalOperator transactionalOperator, DatabaseClient databaseClient) {
+    public SolicitudReactiveRepositoryAdapter(SolicitudReactiveRepository repository, ObjectMapper mapper, TransactionalOperator transactionalOperator, SolicitudPageMapper  solicitudPageMapper) {
 
         super(repository, mapper, d -> mapper.map(d, Solicitud.class));
         this.transactionalOperator = transactionalOperator;
-        this.databaseClient = databaseClient;
+        this.solicitudPageMapper = solicitudPageMapper;
     }
 
     @Override
@@ -44,80 +44,52 @@ public class SolicitudReactiveRepositoryAdapter extends ReactiveAdapterOperation
     }
 
     @Override
-    public Mono<SolicitudRepository.PaginatedResult<Solicitud>> findAllSolicitudes(
-            int page, int size, String sortBy, String sortDirection) {
-        
-        Sort sort = Sort.by(
-            "ASC".equalsIgnoreCase(sortDirection) ? Sort.Direction.ASC : Sort.Direction.DESC,
-            sortBy != null ? sortBy : "idSolicitud"
-        );
-        
-        Pageable pageable = PageRequest.of(page, size, sort);
-        
-        Mono<Long> totalElements = repository.count();
-        
-        Flux<SolicitudEntity> entities = repository.findAllBy(pageable);
-        Flux<Solicitud> solicitudes = entities.map(this::toEntity);
-        
-        Flux<SolicitudEnriquecida> solicitudesEnriquecidas = solicitudes.flatMap(this::enriquecerSolicitud);
-        
-        return Mono.zip(totalElements, solicitudesEnriquecidas.collectList())
-            .map(tuple -> {
-                long total = tuple.getT1();
-                int totalPages = (int) Math.ceil((double) total / size);
-                
-                Flux<Solicitud> content = Flux.fromIterable(tuple.getT2());
-                
-                return new SolicitudRepository.PaginatedResult<>(
-                    content,
-                    total,
-                    totalPages,
-                    page,
-                    size,
-                    page < totalPages - 1,
-                    page > 0
-                );
-            })
-            .doOnSuccess(result -> log.info("Paginación de solicitudes exitosa: página {}, tamaño {}, total: {}", 
-                page, size, result.totalElements()))
-            .doOnError(e -> log.warn("Error en paginación de solicitudes: {}", e.getMessage()));
-    }
+    public Mono<SolicitudPage<SolicitudFieldsPage>> page(SolicitudPageRequest req) {
 
-    private Mono<SolicitudEnriquecida> enriquecerSolicitud(Solicitud solicitud) {
-        if (solicitud.getIdTipoPrestamo() == null && solicitud.getIdEstado() == null) {
-            return Mono.just(new SolicitudEnriquecida(solicitud));
+        // 1) Sanea inputs
+        int size  = Math.min(Math.max(1, req.getSize() == null ? 50 : req.getSize()), 200);
+        int page  = Math.max(0, req.getPage() == null ? 0 : req.getPage());
+        long offset = (long) page * size;
+
+        // sort solo decide si llamamos a ASC o DESC (columna fija id_solicitud)
+        boolean desc = "DESC".equalsIgnoreCase(req.getSort());
+        String sortLabel = "id_solicitud " + (desc ? "DESC" : "ASC");
+
+        // 2) Normaliza filtros
+        // query: "*" => "%" , otro => "%texto%"
+        String q = req.getQuery();
+        q = (q == null || q.isBlank() || "*".equals(q)) ? "%" : "%" + q.trim() + "%";
+
+        // estadoNombre: tomamos el primer estado si viene lista (o null si vacío)
+        String estado = null;
+        if (req.getStatus() != null && !req.getStatus().isEmpty()) {
+            estado = req.getStatus().get(0); // Tomamos solo el primer estado
         }
-        
-        Mono<Object[]> datosTipoPrestamo = solicitud.getIdTipoPrestamo() != null ?
-            databaseClient.sql("SELECT nombre, tasa_interes FROM tipo_prestamos WHERE id_tipo_prestamo = ?")
-                .bind(0, solicitud.getIdTipoPrestamo())
-                .map(row -> new Object[]{
-                    row.get("nombre", String.class),
-                    row.get("tasa_interes", Integer.class)
-                })
-                .one()
-                .defaultIfEmpty(new Object[]{"", 0}) :
-            Mono.just(new Object[]{"", 0});
-        
-        Mono<String> nombreEstado = solicitud.getIdEstado() != null ?
-            databaseClient.sql("SELECT nombre_estado FROM estados WHERE id_estado = ?")
-                .bind(0, solicitud.getIdEstado())
-                .map(row -> row.get("nombre_estado", String.class))
-                .one()
-                .defaultIfEmpty("") :
-            Mono.just("");
-        
-        return Mono.zip(datosTipoPrestamo, nombreEstado)
-            .map(tuple -> {
-                Object[] datosPrestamo = tuple.getT1();
-                String nombre = (String) datosPrestamo[0];
-                Integer tasaInteres = (Integer) datosPrestamo[1];
-                
-                SolicitudEnriquecida solicitudEnriquecida = new SolicitudEnriquecida(solicitud);
-                solicitudEnriquecida.setNombreTipoPrestamo(nombre);
-                solicitudEnriquecida.setEstadoSolicitud(tuple.getT2());
-                solicitudEnriquecida.setTasaInteres(tasaInteres);
-                return solicitudEnriquecida;
-            });
+
+        // 3) Ejecuta la página + total
+        Flux<SolicitudFieldsDto> pageFlux =
+                desc
+                        ? repository.solicitudPageDESC(estado, q, size, offset)
+                        : repository.solicitudPageASC (estado, q, size, offset);
+
+        Mono<List<SolicitudFieldsPage>> itemsMono = pageFlux.map(solicitudPageMapper::toModel).collectList();
+        Mono<Long> totalMono = repository.countResumen(estado, q);
+
+        // 4) Combina y arma SolicitudPage
+        return Mono.zip(itemsMono, totalMono)
+                .map(t -> {
+                    var items = t.getT1();
+                    var total = t.getT2();
+                    boolean hasNext = (offset + items.size()) < total;
+
+                    return new SolicitudPage<>(
+                            items,
+                            total,
+                            size,
+                            page,
+                            hasNext,
+                            sortLabel
+                    );
+                });
     }
 }
