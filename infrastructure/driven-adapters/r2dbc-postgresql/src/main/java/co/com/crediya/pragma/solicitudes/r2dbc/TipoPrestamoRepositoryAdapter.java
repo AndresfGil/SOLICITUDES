@@ -16,15 +16,6 @@ public class TipoPrestamoRepositoryAdapter implements TipoPrestamoRepository {
     }
 
     @Override
-    public Mono<Boolean> existsById(Long id) {
-        return client.sql("SELECT 1 AS ok FROM tipo_prestamos WHERE id_tipo_prestamo = ? LIMIT 1")
-                .bind(0, id)
-                .map((row, md) -> true)
-                .one()
-                .defaultIfEmpty(false);
-    }
-
-    @Override
     public Mono<TipoPrestamo> findById(Long id) {
         return client.sql("SELECT id_tipo_prestamo, nombre, monto_minimo, monto_maximo, tasa_interes, validacion_automatica FROM tipo_prestamos WHERE id_tipo_prestamo = ?")
                 .bind(0, id)

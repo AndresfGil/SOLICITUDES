@@ -1,5 +1,6 @@
 package co.com.crediya.pragma.solicitudes.consumer.dto;
 
+import co.com.crediya.pragma.solicitudes.model.page.UsersForPageResponse;
 import lombok.*;
 import java.util.List;
 
@@ -9,7 +10,5 @@ import java.util.List;
 @AllArgsConstructor
 @Builder(toBuilder = true)
 public class BatchUsersResponse {
-    private List<UsersForPageResponse> users;
-    private Integer totalFound;
-    private Integer totalRequested;
+    List<UsersForPageResponse> results;
 }

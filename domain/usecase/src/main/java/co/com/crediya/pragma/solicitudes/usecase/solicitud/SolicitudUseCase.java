@@ -3,9 +3,11 @@ package co.com.crediya.pragma.solicitudes.usecase.solicitud;
 import co.com.crediya.pragma.solicitudes.model.auth.gateways.AuthenticationGateway;
 import co.com.crediya.pragma.solicitudes.model.exception.MontoFueraDeRangoException;
 import co.com.crediya.pragma.solicitudes.model.exception.TipoPrestamoNotFoundException;
+import co.com.crediya.pragma.solicitudes.model.exception.ValidationUserException;
 import co.com.crediya.pragma.solicitudes.model.page.SolicitudFieldsPage;
 import co.com.crediya.pragma.solicitudes.model.page.SolicitudPage;
 import co.com.crediya.pragma.solicitudes.model.page.SolicitudPageRequest;
+import co.com.crediya.pragma.solicitudes.model.page.UsersForPageResponse;
 import co.com.crediya.pragma.solicitudes.model.solicitud.Solicitud;
 import co.com.crediya.pragma.solicitudes.model.solicitud.SolicitudConUsuario;
 import co.com.crediya.pragma.solicitudes.model.solicitud.SolicitudConUsuarioResponse;
@@ -28,7 +30,7 @@ public class SolicitudUseCase {
     private static final Long ESTADO_SOLICITUD_PENDIENTE  = 1L;
 
     public Mono<Solicitud> saveSolicitud(Solicitud solicitud) {
-        solicitud.setIdEstado(ESTADO_SOLICITUD_PENDIENTE );
+        solicitud.setIdEstado(ESTADO_SOLICITUD_PENDIENTE);
 
         return tipoPrestamoRepository.findById(solicitud.getIdTipoPrestamo())
                 .switchIfEmpty(Mono.error(new TipoPrestamoNotFoundException(solicitud.getIdTipoPrestamo())))
@@ -40,12 +42,20 @@ public class SolicitudUseCase {
                         return Mono.error(new MontoFueraDeRangoException(solicitud.getMonto(), montoMinimo, montoMaximo));
                     }
 
-                    return solicitudRepository.saveSolicitud(solicitud);
+                    // Validar que el usuario existe y es válido
+                    return authenticationGateway.validateUser(solicitud.getEmail(), solicitud.getDocumentoIdentidad())
+                            .flatMap(isValid -> {
+                                if (!isValid) {
+                                    return Mono.error(new ValidationUserException(solicitud.getEmail(), solicitud.getDocumentoIdentidad()));
+                                }
+                                return Mono.just(solicitud);
+                            })
+                            .flatMap(solicitudRepository::saveSolicitud);
                 });
     }
 
     public Mono<SolicitudPage<SolicitudConUsuarioResponse>> findAllSolicitudes(
-            SolicitudPageRequest req, String token) {
+            SolicitudPageRequest req) {
 
         return solicitudRepository.page(req)
                 .flatMap(paged -> {
@@ -57,12 +67,12 @@ public class SolicitudUseCase {
                             .toList();
 
 
-                    // Llamar al batch del MS autenticación
-                    return authenticationGateway.getUsersForPageWithToken(emails, token)
-                            .collectMap(AuthenticationGateway.UserSolicitudInfo::email, u -> u)
-                            .onErrorReturn(Map.of()) // fallback si falla
+                    // Llamar autenticación
+                    return authenticationGateway.getUsersForPage(emails)
+                            .collectMap(UsersForPageResponse::email, u -> u)
+                            .onErrorReturn(Map.of())
                             .map(usersMap -> {
-                                // 3. Enriquecer cada solicitud y convertir a DTO de respuesta
+                                // Enriquecer cada solicitud y convertir a DTO de respuesta
                                 List<SolicitudConUsuarioResponse> enrichedItems = paged.getData().stream()
                                         .map(s -> {
                                             var userInfo = usersMap.get(s.email());

@@ -2,15 +2,12 @@ package co.com.crediya.pragma.solicitudes.r2dbc;
 
 import co.com.crediya.pragma.solicitudes.r2dbc.dto.SolicitudFieldsDto;
 import co.com.crediya.pragma.solicitudes.r2dbc.entities.SolicitudEntity;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.repository.query.ReactiveQueryByExampleExecutor;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
 
 
 public interface SolicitudReactiveRepository extends ReactiveCrudRepository<SolicitudEntity, Long>, ReactiveQueryByExampleExecutor<SolicitudEntity> {
@@ -59,7 +56,7 @@ public interface SolicitudReactiveRepository extends ReactiveCrudRepository<Soli
             @Param("offset") long offset
     );
 
-    // COUNT con los mismos filtros (importante para total y hasNext correctos)
+    // COUNT
     @Query("""
         SELECT COUNT(*)
         FROM solicitudes s

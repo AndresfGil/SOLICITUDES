@@ -17,8 +17,4 @@ public class SolicitudPageRequest {
     List<String> status;
 
 
-    // String query que ayuda a buscar segun el patron indicado al hacer la consulta
-    public String fixQueryFL() {
-        return ("*".equals(query)) ? "%" : "%" + query + "%";
-    }
 }

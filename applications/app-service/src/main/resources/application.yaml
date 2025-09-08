@@ -12,6 +12,14 @@ spring:
   profiles:
     include: null
 
+security:
+  jwt:
+    secret: ${JWT_KEY_SECRET:fQZJCefphgnEAnD9WlLBIQbpzV351d0mb3oGGsT6bvtaSqIZbTSId6wDwV3B1CbxEO7JlxQK6obNR9oUjDlYGg==}
+
+app:
+  issuer: "PowerUp"
+  audience: "PowerUp-API"
+
   flyway:
     enabled: true
     # Flyway usará su propio DataSource JDBC si se provee esta URL
@@ -46,7 +54,7 @@ adapters:
     port: 3306
     database: "solicitudes"
     username: "root"
-    password: "root"
+    password: "andres98"
   authentication:
     base-url: "http://localhost:8080"
 

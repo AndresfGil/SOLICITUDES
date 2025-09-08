@@ -46,7 +46,7 @@ public class SolicitudReactiveRepositoryAdapter extends ReactiveAdapterOperation
     @Override
     public Mono<SolicitudPage<SolicitudFieldsPage>> page(SolicitudPageRequest req) {
 
-        // 1) Sanea inputs
+        // 1) inputs
         int size  = Math.min(Math.max(1, req.getSize() == null ? 50 : req.getSize()), 200);
         int page  = Math.max(0, req.getPage() == null ? 0 : req.getPage());
         long offset = (long) page * size;
@@ -60,10 +60,10 @@ public class SolicitudReactiveRepositoryAdapter extends ReactiveAdapterOperation
         String q = req.getQuery();
         q = (q == null || q.isBlank() || "*".equals(q)) ? "%" : "%" + q.trim() + "%";
 
-        // estadoNombre: tomamos el primer estado si viene lista (o null si vacío)
+        // estadoNombre: tomamos el primer estado si viene lista
         String estado = null;
         if (req.getStatus() != null && !req.getStatus().isEmpty()) {
-            estado = req.getStatus().get(0); // Tomamos solo el primer estado
+            estado = req.getStatus().get(0);
         }
 
         // 3) Ejecuta la página + total
