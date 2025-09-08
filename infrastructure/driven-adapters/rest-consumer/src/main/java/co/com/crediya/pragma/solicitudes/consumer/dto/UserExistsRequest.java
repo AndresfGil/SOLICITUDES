@@ -1,5 +1,4 @@
 package co.com.crediya.pragma.solicitudes.consumer.dto;
-
 import lombok.Builder;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -11,10 +10,9 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder(toBuilder = true)
-public class UserByEmailResponse {
+public class UserExistsRequest {
+
     private String email;
-    private String name;
-    private String lastname;
-    private Long rolId;
-    private String documentId;
+    private String documentoIdentidad;
+
 }

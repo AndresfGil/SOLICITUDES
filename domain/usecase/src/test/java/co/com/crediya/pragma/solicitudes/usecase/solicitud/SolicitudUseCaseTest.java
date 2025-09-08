@@ -1,13 +1,19 @@
 package co.com.crediya.pragma.solicitudes.usecase.solicitud;
 
+import co.com.crediya.pragma.solicitudes.model.auth.gateways.AuthenticationGateway;
 import co.com.crediya.pragma.solicitudes.model.exception.MontoFueraDeRangoException;
 import co.com.crediya.pragma.solicitudes.model.exception.TipoPrestamoNotFoundException;
+import co.com.crediya.pragma.solicitudes.model.exception.ValidationUserException;
+import co.com.crediya.pragma.solicitudes.model.page.SolicitudFieldsPage;
+import co.com.crediya.pragma.solicitudes.model.page.SolicitudPage;
+import co.com.crediya.pragma.solicitudes.model.page.SolicitudPageRequest;
+import co.com.crediya.pragma.solicitudes.model.page.UsersForPageResponse;
 import co.com.crediya.pragma.solicitudes.model.solicitud.Solicitud;
+import co.com.crediya.pragma.solicitudes.model.solicitud.SolicitudConUsuarioResponse;
 import co.com.crediya.pragma.solicitudes.model.solicitud.gateways.SolicitudRepository;
 import co.com.crediya.pragma.solicitudes.model.solicitud.gateways.TipoPrestamoRepository;
 import co.com.crediya.pragma.solicitudes.model.tipoprestamo.TipoPrestamo;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -17,12 +23,12 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("Tests para SolicitudUseCase")
 class SolicitudUseCaseTest {
 
     @Mock
@@ -31,48 +37,60 @@ class SolicitudUseCaseTest {
     @Mock
     private TipoPrestamoRepository tipoPrestamoRepository;
 
-    private SolicitudUseCase solicitudUseCase;
+    @Mock
+    private AuthenticationGateway authenticationGateway;
 
-    private Solicitud solicitud;
-    private TipoPrestamo tipoPrestamo;
+    private SolicitudUseCase solicitudUseCase;
 
     @BeforeEach
     void setUp() {
-        solicitudUseCase = new SolicitudUseCase(solicitudRepository, tipoPrestamoRepository);
+        solicitudUseCase = new SolicitudUseCase(solicitudRepository, tipoPrestamoRepository, authenticationGateway);
+    }
 
-        tipoPrestamo = TipoPrestamo.builder()
-                .idTipoPrestamo(1L)
-                .nombre("Préstamo de Consumo")
-                .montoMinimo(500000)
-                .montoMaximo(5000000)
-                .tasaInteres(15)
-                .validacionAutomatica(false)
-                .build();
-
-        solicitud = Solicitud.builder()
-                .monto(new BigDecimal("2000000"))
-                .plazo(12)
+    @Test
+    void saveSolicitud_WhenValidData_ShouldReturnSavedSolicitud() {
+        Solicitud solicitud = Solicitud.builder()
+                .monto(new BigDecimal("5000000"))
+                .plazo(24)
                 .email("test@example.com")
                 .documentoIdentidad("12345678")
                 .idTipoPrestamo(1L)
                 .build();
-    }
 
-    @Test
-    @DisplayName("Debería guardar una solicitud exitosamente cuando el monto está en rango")
-    void shouldSaveSolicitudSuccessfullyWhenAmountIsInRange() {
+        TipoPrestamo tipoPrestamo = TipoPrestamo.builder()
+                .idTipoPrestamo(1L)
+                .nombre("Personal")
+                .montoMinimo(1000000)
+                .montoMaximo(10000000)
+                .tasaInteres(15)
+                .validacionAutomatica(true)
+                .build();
+
+        Solicitud solicitudSaved = solicitud.toBuilder()
+                .idSolicitud(1L)
+                .idEstado(1L)
+                .build();
+
         when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
-        when(solicitudRepository.saveSolicitud(any(Solicitud.class))).thenReturn(Mono.just(solicitud));
+        when(authenticationGateway.validateUser("test@example.com", "12345678")).thenReturn(Mono.just(true));
+        when(solicitudRepository.saveSolicitud(any(Solicitud.class))).thenReturn(Mono.just(solicitudSaved));
 
         StepVerifier.create(solicitudUseCase.saveSolicitud(solicitud))
-                .expectNext(solicitud)
+                .expectNext(solicitudSaved)
                 .verifyComplete();
     }
 
     @Test
-    @DisplayName("Debería lanzar excepción cuando el tipo de préstamo no existe")
-    void shouldThrowExceptionWhenTipoPrestamoDoesNotExist() {
-        when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.empty());
+    void saveSolicitud_WhenTipoPrestamoNotFound_ShouldThrowTipoPrestamoNotFoundException() {
+        Solicitud solicitud = Solicitud.builder()
+                .monto(new BigDecimal("5000000"))
+                .plazo(24)
+                .email("test@example.com")
+                .documentoIdentidad("12345678")
+                .idTipoPrestamo(999L)
+                .build();
+
+        when(tipoPrestamoRepository.findById(999L)).thenReturn(Mono.empty());
 
         StepVerifier.create(solicitudUseCase.saveSolicitud(solicitud))
                 .expectError(TipoPrestamoNotFoundException.class)
@@ -80,92 +98,286 @@ class SolicitudUseCaseTest {
     }
 
     @Test
-    @DisplayName("Debería lanzar excepción cuando el monto está por debajo del mínimo")
-    void shouldThrowExceptionWhenAmountIsBelowMinimum() {
-        Solicitud solicitudMontoBajo = solicitud.toBuilder()
-                .monto(new BigDecimal("300000")) // Por debajo del mínimo de 500000
+    void saveSolicitud_WhenMontoBelowMinimum_ShouldThrowMontoFueraDeRangoException() {
+        Solicitud solicitud = Solicitud.builder()
+                .monto(new BigDecimal("500000"))
+                .plazo(24)
+                .email("test@example.com")
+                .documentoIdentidad("12345678")
+                .idTipoPrestamo(1L)
+                .build();
+
+        TipoPrestamo tipoPrestamo = TipoPrestamo.builder()
+                .idTipoPrestamo(1L)
+                .nombre("Personal")
+                .montoMinimo(1000000)
+                .montoMaximo(10000000)
+                .tasaInteres(15)
+                .validacionAutomatica(true)
                 .build();
 
         when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
-
-        StepVerifier.create(solicitudUseCase.saveSolicitud(solicitudMontoBajo))
-                .expectError(MontoFueraDeRangoException.class)
-                .verify();
-    }
-
-    @Test
-    @DisplayName("Debería lanzar excepción cuando el monto está por encima del máximo")
-    void shouldThrowExceptionWhenAmountIsAboveMaximum() {
-        Solicitud solicitudMontoAlto = solicitud.toBuilder()
-                .monto(new BigDecimal("6000000")) // Por encima del máximo de 5000000
-                .build();
-
-        when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
-
-        StepVerifier.create(solicitudUseCase.saveSolicitud(solicitudMontoAlto))
-                .expectError(MontoFueraDeRangoException.class)
-                .verify();
-    }
-
-    @Test
-    @DisplayName("Debería permitir monto exactamente en el límite mínimo")
-    void shouldAllowAmountExactlyAtMinimumLimit() {
-        Solicitud solicitudMontoMinimo = solicitud.toBuilder()
-                .monto(new BigDecimal("500000")) // Exactamente el mínimo
-                .build();
-
-        when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
-        when(solicitudRepository.saveSolicitud(any(Solicitud.class))).thenReturn(Mono.just(solicitudMontoMinimo));
-
-        StepVerifier.create(solicitudUseCase.saveSolicitud(solicitudMontoMinimo))
-                .expectNext(solicitudMontoMinimo)
-                .verifyComplete();
-    }
-
-    @Test
-    @DisplayName("Debería permitir monto exactamente en el límite máximo")
-    void shouldAllowAmountExactlyAtMaximumLimit() {
-        Solicitud solicitudMontoMaximo = solicitud.toBuilder()
-                .monto(new BigDecimal("5000000")) // Exactamente el máximo
-                .build();
-
-        when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
-        when(solicitudRepository.saveSolicitud(any(Solicitud.class))).thenReturn(Mono.just(solicitudMontoMaximo));
-
-        StepVerifier.create(solicitudUseCase.saveSolicitud(solicitudMontoMaximo))
-                .expectNext(solicitudMontoMaximo)
-                .verifyComplete();
-    }
-
-    @Test
-    @DisplayName("Debería establecer el estado en 1 al guardar")
-    void shouldSetEstadoTo1WhenSaving() {
-        when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
-        when(solicitudRepository.saveSolicitud(any(Solicitud.class))).thenReturn(Mono.just(solicitud));
 
         StepVerifier.create(solicitudUseCase.saveSolicitud(solicitud))
-                .expectNextMatches(savedSolicitud -> savedSolicitud.getIdEstado().equals(1L))
+                .expectError(MontoFueraDeRangoException.class)
+                .verify();
+    }
+
+    @Test
+    void saveSolicitud_WhenMontoAboveMaximum_ShouldThrowMontoFueraDeRangoException() {
+        Solicitud solicitud = Solicitud.builder()
+                .monto(new BigDecimal("15000000"))
+                .plazo(24)
+                .email("test@example.com")
+                .documentoIdentidad("12345678")
+                .idTipoPrestamo(1L)
+                .build();
+
+        TipoPrestamo tipoPrestamo = TipoPrestamo.builder()
+                .idTipoPrestamo(1L)
+                .nombre("Personal")
+                .montoMinimo(1000000)
+                .montoMaximo(10000000)
+                .tasaInteres(15)
+                .validacionAutomatica(true)
+                .build();
+
+        when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
+
+        StepVerifier.create(solicitudUseCase.saveSolicitud(solicitud))
+                .expectError(MontoFueraDeRangoException.class)
+                .verify();
+    }
+
+    @Test
+    void saveSolicitud_WhenUserInvalid_ShouldThrowValidationUserException() {
+        Solicitud solicitud = Solicitud.builder()
+                .monto(new BigDecimal("5000000"))
+                .plazo(24)
+                .email("invalid@example.com")
+                .documentoIdentidad("12345678")
+                .idTipoPrestamo(1L)
+                .build();
+
+        TipoPrestamo tipoPrestamo = TipoPrestamo.builder()
+                .idTipoPrestamo(1L)
+                .nombre("Personal")
+                .montoMinimo(1000000)
+                .montoMaximo(10000000)
+                .tasaInteres(15)
+                .validacionAutomatica(true)
+                .build();
+
+        when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
+        when(authenticationGateway.validateUser("invalid@example.com", "12345678")).thenReturn(Mono.just(false));
+
+        StepVerifier.create(solicitudUseCase.saveSolicitud(solicitud))
+                .expectError(ValidationUserException.class)
+                .verify();
+    }
+
+    @Test
+    void findAllSolicitudes_WhenValidRequest_ShouldReturnEnrichedPage() {
+        SolicitudPageRequest pageRequest = new SolicitudPageRequest();
+        pageRequest.setPage(0);
+        pageRequest.setSize(10);
+
+        SolicitudFieldsPage solicitudFields = new SolicitudFieldsPage(
+                new BigDecimal("5000000"),
+                24,
+                "test@example.com",
+                "Personal",
+                "Pendiente"
+        );
+
+        SolicitudPage<SolicitudFieldsPage> pagedData = new SolicitudPage<>(
+                List.of(solicitudFields),
+                1L,
+                10,
+                0,
+                false,
+                "ASC"
+        );
+
+        UsersForPageResponse userInfo = new UsersForPageResponse(
+                "Juan Pérez",
+                "test@example.com",
+                3000000L
+        );
+
+        when(solicitudRepository.page(pageRequest)).thenReturn(Mono.just(pagedData));
+        when(authenticationGateway.getUsersForPage(List.of("test@example.com")))
+                .thenReturn(Flux.just(userInfo));
+
+        StepVerifier.create(solicitudUseCase.findAllSolicitudes(pageRequest))
+                .assertNext(result -> {
+                    assert result.getData().size() == 1;
+                    assert result.getTotalRows() == 1L;
+                    assert result.getPageSize() == 10;
+                    assert result.getPageNum() == 0;
+                    assert !result.getHasNext();
+                    assert result.getSort().equals("ASC");
+                    
+                    SolicitudConUsuarioResponse response = result.getData().get(0);
+                    assert response.getMonto().equals(new BigDecimal("5000000"));
+                    assert response.getPlazo() == 24;
+                    assert response.getEmail().equals("test@example.com");
+                    assert response.getNombreTipoPrestamo().equals("Personal");
+                    assert response.getEstadoSolicitud().equals("Pendiente");
+                    assert response.getNombre().equals("Juan Pérez");
+                    assert response.getSalarioBase() == 3000000L;
+                })
                 .verifyComplete();
     }
 
     @Test
-    @DisplayName("Debería encontrar todas las solicitudes")
-    void shouldFindAllSolicitudes() {
-        when(solicitudRepository.findAllSolicitudes()).thenReturn(Flux.just(solicitud));
+    void findAllSolicitudes_WhenNoUsersFound_ShouldReturnPageWithNullUserInfo() {
+        SolicitudPageRequest pageRequest = new SolicitudPageRequest();
+        pageRequest.setPage(0);
+        pageRequest.setSize(10);
 
-        StepVerifier.create(solicitudUseCase.findAllSolicitudes())
-                .expectNext(solicitud)
+        SolicitudFieldsPage solicitudFields = new SolicitudFieldsPage(
+                new BigDecimal("5000000"),
+                24,
+                "test@example.com",
+                "Personal",
+                "Pendiente"
+        );
+
+        SolicitudPage<SolicitudFieldsPage> pagedData = new SolicitudPage<>(
+                List.of(solicitudFields),
+                1L,
+                10,
+                0,
+                false,
+                "ASC"
+        );
+
+        when(solicitudRepository.page(pageRequest)).thenReturn(Mono.just(pagedData));
+        when(authenticationGateway.getUsersForPage(List.of("test@example.com")))
+                .thenReturn(Flux.empty());
+
+        StepVerifier.create(solicitudUseCase.findAllSolicitudes(pageRequest))
+                .assertNext(result -> {
+                    assert result.getData().size() == 1;
+                    SolicitudConUsuarioResponse response = result.getData().get(0);
+                    assert response.getMonto().equals(new BigDecimal("5000000"));
+                    assert response.getNombre() == null;
+                    assert response.getSalarioBase() == null;
+                })
                 .verifyComplete();
     }
 
     @Test
-    @DisplayName("Debería encontrar una solicitud por ID")
-    void shouldFindSolicitudById() {
-        Long id = 1L;
-        when(solicitudRepository.findSolicitudById(id)).thenReturn(Mono.just(solicitud));
+    void findAllSolicitudes_WhenAuthenticationGatewayFails_ShouldReturnPageWithEmptyUserInfo() {
+        SolicitudPageRequest pageRequest = new SolicitudPageRequest();
+        pageRequest.setPage(0);
+        pageRequest.setSize(10);
 
-        StepVerifier.create(solicitudUseCase.findSolicitudById(id))
-                .expectNext(solicitud)
+        SolicitudFieldsPage solicitudFields = new SolicitudFieldsPage(
+                new BigDecimal("5000000"),
+                24,
+                "test@example.com",
+                "Personal",
+                "Pendiente"
+        );
+
+        SolicitudPage<SolicitudFieldsPage> pagedData = new SolicitudPage<>(
+                List.of(solicitudFields),
+                1L,
+                10,
+                0,
+                false,
+                "ASC"
+        );
+
+        when(solicitudRepository.page(pageRequest)).thenReturn(Mono.just(pagedData));
+        when(authenticationGateway.getUsersForPage(List.of("test@example.com")))
+                .thenReturn(Flux.error(new RuntimeException("Authentication service error")));
+
+        StepVerifier.create(solicitudUseCase.findAllSolicitudes(pageRequest))
+                .assertNext(result -> {
+                    assert result.getData().size() == 1;
+                    SolicitudConUsuarioResponse response = result.getData().get(0);
+                    assert response.getMonto().equals(new BigDecimal("5000000"));
+                    assert response.getNombre() == null;
+                    assert response.getSalarioBase() == null;
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void findAllSolicitudes_WhenMultipleEmails_ShouldFilterUniqueEmails() {
+        SolicitudPageRequest pageRequest = new SolicitudPageRequest();
+        pageRequest.setPage(0);
+        pageRequest.setSize(10);
+
+        SolicitudFieldsPage solicitud1 = new SolicitudFieldsPage(
+                new BigDecimal("5000000"),
+                24,
+                "test1@example.com",
+                "Personal",
+                "Pendiente"
+        );
+
+        SolicitudFieldsPage solicitud2 = new SolicitudFieldsPage(
+                new BigDecimal("3000000"),
+                12,
+                "test2@example.com",
+                "Personal",
+                "Pendiente"
+        );
+
+        SolicitudFieldsPage solicitud3 = new SolicitudFieldsPage(
+                new BigDecimal("7000000"),
+                36,
+                "test1@example.com",
+                "Personal",
+                "Pendiente"
+        );
+
+        SolicitudPage<SolicitudFieldsPage> pagedData = new SolicitudPage<>(
+                List.of(solicitud1, solicitud2, solicitud3),
+                3L,
+                10,
+                0,
+                false,
+                "ASC"
+        );
+
+        UsersForPageResponse user1 = new UsersForPageResponse(
+                "Juan Pérez",
+                "test1@example.com",
+                3000000L
+        );
+
+        UsersForPageResponse user2 = new UsersForPageResponse(
+                "María García",
+                "test2@example.com",
+                4000000L
+        );
+
+        when(solicitudRepository.page(pageRequest)).thenReturn(Mono.just(pagedData));
+        when(authenticationGateway.getUsersForPage(List.of("test1@example.com", "test2@example.com")))
+                .thenReturn(Flux.just(user1, user2));
+
+        StepVerifier.create(solicitudUseCase.findAllSolicitudes(pageRequest))
+                .assertNext(result -> {
+                    assert result.getData().size() == 3;
+                    assert result.getTotalRows() == 3L;
+                    
+                    SolicitudConUsuarioResponse response1 = result.getData().get(0);
+                    assert response1.getEmail().equals("test1@example.com");
+                    assert response1.getNombre().equals("Juan Pérez");
+                    
+                    SolicitudConUsuarioResponse response2 = result.getData().get(1);
+                    assert response2.getEmail().equals("test2@example.com");
+                    assert response2.getNombre().equals("María García");
+                    
+                    SolicitudConUsuarioResponse response3 = result.getData().get(2);
+                    assert response3.getEmail().equals("test1@example.com");
+                    assert response3.getNombre().equals("Juan Pérez");
+                })
                 .verifyComplete();
     }
 }

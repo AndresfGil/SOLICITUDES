@@ -4,6 +4,8 @@ import co.com.crediya.pragma.solicitudes.api.SolicitudHandler;
 import co.com.crediya.pragma.solicitudes.api.dto.SolicitudDTO;
 import co.com.crediya.pragma.solicitudes.api.dto.SolicitudResponseDTO;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
@@ -15,7 +17,6 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerResponse;
-import co.com.crediya.pragma.solicitudes.model.solicitud.Solicitud;
 
 public interface SolicitudControllerDocs {
 
@@ -30,7 +31,7 @@ public interface SolicitudControllerDocs {
                             operationId = "createSolicitud",
                             summary = "Crear solicitud de préstamo",
                             description = "Crea una nueva solicitud de préstamo. Solo usuarios con rol CLIENTE pueden crear solicitudes.",
-                            security = @SecurityRequirement(name = "bearerAuth"),
+                            security = @SecurityRequirement(name = "Bearer Authentication"),
                             requestBody = @RequestBody(required = true, content = @Content(schema = @Schema(implementation = SolicitudDTO.class))),
                             responses = {
                                     @ApiResponse(responseCode = "200", description = "Solicitud creada exitosamente",
@@ -47,38 +48,55 @@ public interface SolicitudControllerDocs {
                     produces = MediaType.APPLICATION_JSON_VALUE,
                     method = RequestMethod.GET,
                     beanClass = SolicitudHandler.class,
-                    beanMethod = "listenGetAllSolicitudes",
+                    beanMethod = "listenGetSolicitudes",
                     operation = @Operation(
-                            operationId = "getAllSolicitudes",
-                            summary = "Obtener todas las solicitudes",
-                            description = "Retorna una lista de todas las solicitudes de préstamo. Solo usuarios con rol ADMIN o ASESOR pueden consultar solicitudes.",
-                            security = @SecurityRequirement(name = "bearerAuth"),
+                            operationId = "getSolicitudes",
+                            summary = "Obtener solicitudes de préstamo",
+                            description = "Obtiene una lista paginada de solicitudes de préstamo con filtros y ordenamiento. Solo usuarios con rol ASESOR pueden consultar solicitudes.",
+                            security = @SecurityRequirement(name = "Bearer Authentication"),
+                            parameters = {
+                                    @Parameter(
+                                            name = "page",
+                                            description = "Número de página (comienza en 0)",
+                                            in = ParameterIn.QUERY,
+                                            schema = @Schema(type = "integer", defaultValue = "0", example = "0")
+                                    ),
+                                    @Parameter(
+                                            name = "size",
+                                            description = "Tamaño de la página (número de elementos por página)",
+                                            in = ParameterIn.QUERY,
+                                            schema = @Schema(type = "integer", defaultValue = "50", example = "10")
+                                    ),
+                                    @Parameter(
+                                            name = "sort",
+                                            description = "Dirección del ordenamiento",
+                                            in = ParameterIn.QUERY,
+                                            schema = @Schema(type = "string", allowableValues = {"ASC", "DESC"}, defaultValue = "ASC", example = "ASC")
+                                    ),
+                                    @Parameter(
+                                            name = "columnSort",
+                                            description = "Columna por la cual ordenar",
+                                            in = ParameterIn.QUERY,
+                                            schema = @Schema(type = "string", example = "monto")
+                                    ),
+                                    @Parameter(
+                                            name = "query",
+                                            description = "Filtro de búsqueda (busca en tipo de préstamo)",
+                                            in = ParameterIn.QUERY,
+                                            schema = @Schema(type = "string", defaultValue = "%", example = "personal")
+                                    ),
+                                    @Parameter(
+                                            name = "status",
+                                            description = "Filtro por estado de solicitud (separado por comas para múltiples estados)",
+                                            in = ParameterIn.QUERY,
+                                            schema = @Schema(type = "string", example = "1,2,3")
+                                    )
+                            },
                             responses = {
                                     @ApiResponse(responseCode = "200", description = "Lista de solicitudes obtenida exitosamente",
-                                            content = @Content(schema = @Schema(implementation = Solicitud.class))),
+                                            content = @Content(schema = @Schema(implementation = SolicitudResponseDTO.class))),
                                     @ApiResponse(responseCode = "401", description = "Token no proporcionado o inválido"),
-                                    @ApiResponse(responseCode = "403", description = "Usuario no autorizado - Solo usuarios ADMIN/ASESOR pueden consultar solicitudes"),
-                                    @ApiResponse(responseCode = "500", description = "Error interno del servidor")
-                            }
-                    )
-            ),
-            @RouterOperation(
-                    path = "/api/v1/solicitudes/{id}",
-                    produces = MediaType.APPLICATION_JSON_VALUE,
-                    method = RequestMethod.GET,
-                    beanClass = SolicitudHandler.class,
-                    beanMethod = "listenGetSolicitudById",
-                    operation = @Operation(
-                            operationId = "getSolicitudById",
-                            summary = "Obtener solicitud por ID",
-                            description = "Retorna una solicitud específica por su ID. Solo usuarios con rol ADMIN o ASESOR pueden consultar solicitudes.",
-                            security = @SecurityRequirement(name = "bearerAuth"),
-                            responses = {
-                                    @ApiResponse(responseCode = "200", description = "Solicitud encontrada exitosamente",
-                                            content = @Content(schema = @Schema(implementation = Solicitud.class))),
-                                    @ApiResponse(responseCode = "401", description = "Token no proporcionado o inválido"),
-                                    @ApiResponse(responseCode = "403", description = "Usuario no autorizado - Solo usuarios ADMIN/ASESOR pueden consultar solicitudes"),
-                                    @ApiResponse(responseCode = "404", description = "Solicitud no encontrada"),
+                                    @ApiResponse(responseCode = "403", description = "Usuario no autorizado - Solo usuarios ASESOR pueden consultar solicitudes"),
                                     @ApiResponse(responseCode = "500", description = "Error interno del servidor")
                             }
                     )

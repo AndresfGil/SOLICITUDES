@@ -1,16 +1,21 @@
 package co.com.crediya.pragma.solicitudes.consumer;
 
-import co.com.crediya.pragma.solicitudes.consumer.dto.UserRoleValidationResponse;
-import co.com.crediya.pragma.solicitudes.consumer.dto.UserByEmailResponse;
+import co.com.crediya.pragma.solicitudes.consumer.dto.*;
+import co.com.crediya.pragma.solicitudes.model.page.UsersForPageResponse;
 import co.com.crediya.pragma.solicitudes.model.auth.gateways.AuthenticationGateway;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -23,47 +28,60 @@ public class AuthenticationRestAdapter implements AuthenticationGateway {
     private String authenticationBaseUrl;
 
     @Override
-    public Mono<UserRoleInfo> validateToken(String token) {
+    public Mono<Boolean> validateUser(String email, String documentoIdentidad) {
         log.info("Validando token con servicio de autenticación");
-        
-        return webClient
-                .get()
-                .uri(authenticationBaseUrl + "/api/v1/validate-token")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .retrieve()
-                .bodyToMono(UserRoleValidationResponse.class)
-                .doOnNext(response -> log.info("Token validado exitosamente para usuario: {}", response.getUser().getEmail()))
-                .doOnError(error -> log.error("Error al validar token: {}", error.getMessage()))
-                .map(response -> {
-                    if (response == null || !response.isValid() || response.getUser() == null) {
-                        throw new RuntimeException("Respuesta de validación inválida");
-                    }
-                    return new UserRoleInfo(response.getUser().getEmail(), response.getUser().getRolId());
-                })
-                .onErrorMap(throwable -> new RuntimeException("Error al validar token: " + throwable.getMessage()));
+
+        return bearer().flatMap(tok->
+                webClient.post()
+                        .uri(authenticationBaseUrl + "/api/v1/validate-user")
+                        .headers(h -> h.setBearerAuth(tok))
+                        .bodyValue(new UserExistsRequest( email, documentoIdentidad))
+                        .retrieve()
+                        .bodyToMono(Map.class)
+                        .map(response -> {
+                            Boolean exists = (Boolean) response.get("exists");
+                            return exists != null ? exists : false;
+                        })
+        );
     }
 
     @Override
-    public Mono<UserCompleteInfo> getCurrentUserInfo(String token) {
-        log.info("Consultando información del usuario autenticado");
-        
-        return webClient
-                .get()
-                .uri(authenticationBaseUrl + "/api/v1/users/me")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .retrieve()
-                .bodyToMono(UserByEmailResponse.class)
-                .doOnNext(response -> log.info("Usuario encontrado: {}", response.getEmail()))
-                .doOnError(error -> log.error("Error al consultar usuario: {}", error.getMessage()))
-                .map(response -> new UserCompleteInfo(
-                        response.getEmail(),
-                        response.getName(),
-                        response.getLastname(),
-                        response.getRolId(),
-                        response.getDocumentId()
-                ))
-                .onErrorMap(throwable -> new RuntimeException("Error al consultar usuario: " + throwable.getMessage()));
+    public Flux<UsersForPageResponse> getUsersForPage(List<String> emails) {
+        log.info("Consultando información de los usuarios listados con token: {}", emails.size());
+        return bearer().flatMapMany(tok->
+                webClient.post()
+                        .uri(authenticationBaseUrl + "/api/v1/users/batch")
+                        .headers(h -> h.setBearerAuth(tok))
+                        .bodyValue(Map.of("emails", emails))
+                        .retrieve()
+                        .bodyToMono(Map.class)
+                        .doOnNext(r -> log.warn("Request emails: " + emails))
+                        .doOnNext(r -> log.warn("Response: " + r))
+                        .doOnError(e -> log.error("Error: " + e.getMessage()))
+                        .flatMapMany(response -> {
+                            @SuppressWarnings("unchecked")
+                            List<Map<String, Object>> users = (List<Map<String, Object>>) response.get("users");
+                            if (users == null) {
+                                return Flux.empty();
+                            }
+                            return Flux.fromIterable(users)
+                                    .map(userMap -> UsersForPageResponse.builder()
+                                            .name((String) userMap.get("name"))
+                                            .email((String) userMap.get("email"))
+                                            .baseSalary(userMap.get("baseSalary") != null ? 
+                                                    Long.valueOf(userMap.get("baseSalary").toString()) : null)
+                                            .build());
+                        })
+        );
     }
+
+    private Mono<String> bearer(){
+        return ReactiveSecurityContextHolder.getContext()
+                .map(SecurityContext::getAuthentication)
+                .filter(a -> a instanceof JwtAuthenticationToken)
+                .map(a -> ((JwtAuthenticationToken) a).getToken().getTokenValue());
+    }
+
+
+
 }

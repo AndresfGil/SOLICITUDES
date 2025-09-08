@@ -20,6 +20,4 @@ public class TipoPrestamo {
     private Integer tasaInteres;
     private Boolean validacionAutomatica;
 
-    public <T> TipoPrestamo(T idTipoPrestamo, T nombre) {
-    }
 }

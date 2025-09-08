@@ -5,7 +5,5 @@ import reactor.core.publisher.Mono;
 
 public interface TipoPrestamoRepository {
 
-    Mono<Boolean> existsById(Long id);
-    
     Mono<TipoPrestamo> findById(Long id);
 }
