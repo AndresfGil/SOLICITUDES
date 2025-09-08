@@ -3,10 +3,9 @@ package co.com.crediya.pragma.solicitudes.api.docs;
 import co.com.crediya.pragma.solicitudes.api.SolicitudHandler;
 import co.com.crediya.pragma.solicitudes.api.dto.SolicitudDTO;
 import co.com.crediya.pragma.solicitudes.api.dto.SolicitudResponseDTO;
-import co.com.crediya.pragma.solicitudes.model.page.SolicitudPage;
-import co.com.crediya.pragma.solicitudes.model.solicitud.SolicitudConUsuarioResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
@@ -32,7 +31,7 @@ public interface SolicitudControllerDocs {
                             operationId = "createSolicitud",
                             summary = "Crear solicitud de préstamo",
                             description = "Crea una nueva solicitud de préstamo. Solo usuarios con rol CLIENTE pueden crear solicitudes.",
-                            security = @SecurityRequirement(name = "bearerAuth"),
+                            security = @SecurityRequirement(name = "Bearer Authentication"),
                             requestBody = @RequestBody(required = true, content = @Content(schema = @Schema(implementation = SolicitudDTO.class))),
                             responses = {
                                     @ApiResponse(responseCode = "200", description = "Solicitud creada exitosamente",
@@ -51,24 +50,53 @@ public interface SolicitudControllerDocs {
                     beanClass = SolicitudHandler.class,
                     beanMethod = "listenGetSolicitudes",
                     operation = @Operation(
-                            operationId = "getSolicitudesWithUsers",
-                            summary = "Obtener solicitudes paginadas con información de usuarios",
-                            description = "Retorna una lista paginada de solicitudes enriquecida con información de usuarios. Solo usuarios con rol ADMIN o ASESOR pueden consultar solicitudes.",
-                            security = @SecurityRequirement(name = "bearerAuth"),
+                            operationId = "getSolicitudes",
+                            summary = "Obtener solicitudes de préstamo",
+                            description = "Obtiene una lista paginada de solicitudes de préstamo con filtros y ordenamiento. Solo usuarios con rol ASESOR pueden consultar solicitudes.",
+                            security = @SecurityRequirement(name = "Bearer Authentication"),
                             parameters = {
-                                    @Parameter(name = "page", description = "Número de página (base 0)", example = "0", schema = @Schema(type = "integer", defaultValue = "0")),
-                                    @Parameter(name = "size", description = "Tamaño de página (máximo 200)", example = "50", schema = @Schema(type = "integer", defaultValue = "50")),
-                                    @Parameter(name = "sort", description = "Dirección de ordenamiento: ASC o DESC", example = "ASC", schema = @Schema(type = "string", allowableValues = {"ASC", "DESC"}, defaultValue = "ASC")),
-                                    @Parameter(name = "columnSort", description = "Columna para ordenar", example = "id_solicitud", schema = @Schema(type = "string")),
-                                    @Parameter(name = "query", description = "Texto para filtrar por tipo de préstamo", example = "consumo", schema = @Schema(type = "string")),
-                                    @Parameter(name = "status", description = "Estado de la solicitud (puede ser múltiple separado por comas)", example = "APROBADO", schema = @Schema(type = "string"))
+                                    @Parameter(
+                                            name = "page",
+                                            description = "Número de página (comienza en 0)",
+                                            in = ParameterIn.QUERY,
+                                            schema = @Schema(type = "integer", defaultValue = "0", example = "0")
+                                    ),
+                                    @Parameter(
+                                            name = "size",
+                                            description = "Tamaño de la página (número de elementos por página)",
+                                            in = ParameterIn.QUERY,
+                                            schema = @Schema(type = "integer", defaultValue = "50", example = "10")
+                                    ),
+                                    @Parameter(
+                                            name = "sort",
+                                            description = "Dirección del ordenamiento",
+                                            in = ParameterIn.QUERY,
+                                            schema = @Schema(type = "string", allowableValues = {"ASC", "DESC"}, defaultValue = "ASC", example = "ASC")
+                                    ),
+                                    @Parameter(
+                                            name = "columnSort",
+                                            description = "Columna por la cual ordenar",
+                                            in = ParameterIn.QUERY,
+                                            schema = @Schema(type = "string", example = "monto")
+                                    ),
+                                    @Parameter(
+                                            name = "query",
+                                            description = "Filtro de búsqueda (busca en tipo de préstamo)",
+                                            in = ParameterIn.QUERY,
+                                            schema = @Schema(type = "string", defaultValue = "%", example = "personal")
+                                    ),
+                                    @Parameter(
+                                            name = "status",
+                                            description = "Filtro por estado de solicitud (separado por comas para múltiples estados)",
+                                            in = ParameterIn.QUERY,
+                                            schema = @Schema(type = "string", example = "1,2,3")
+                                    )
                             },
                             responses = {
-                                    @ApiResponse(responseCode = "200", description = "Lista de solicitudes con usuarios obtenida exitosamente",
-                                            content = @Content(schema = @Schema(implementation = SolicitudPage.class))),
-                                    @ApiResponse(responseCode = "400", description = "Parámetros de consulta inválidos"),
+                                    @ApiResponse(responseCode = "200", description = "Lista de solicitudes obtenida exitosamente",
+                                            content = @Content(schema = @Schema(implementation = SolicitudResponseDTO.class))),
                                     @ApiResponse(responseCode = "401", description = "Token no proporcionado o inválido"),
-                                    @ApiResponse(responseCode = "403", description = "Usuario no autorizado - Solo usuarios ADMIN/ASESOR pueden consultar solicitudes"),
+                                    @ApiResponse(responseCode = "403", description = "Usuario no autorizado - Solo usuarios ASESOR pueden consultar solicitudes"),
                                     @ApiResponse(responseCode = "500", description = "Error interno del servidor")
                             }
                     )

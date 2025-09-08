@@ -6,7 +6,6 @@ import java.util.List;
 @Data
 public class SolicitudPageRequest {
 
-    // Paginado
     Integer page = 0;
     Integer size = 50;
 

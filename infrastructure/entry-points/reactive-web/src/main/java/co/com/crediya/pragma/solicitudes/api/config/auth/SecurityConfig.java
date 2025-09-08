@@ -25,7 +25,6 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import java.time.Duration;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -39,6 +38,11 @@ public class SecurityConfig {
                 .authorizeExchange(ex -> ex
                         // abre lo que deba estar público
                         .pathMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+                        
+                        // Swagger/OpenAPI documentation
+                        .pathMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .pathMatchers("/v3/api-docs/**", "/api-docs/**").permitAll()
+                        .pathMatchers("/webjars/**").permitAll()
 
                         // reglas de negocio
                         .pathMatchers(HttpMethod.GET, "/api/v1/solicitudes").hasAnyAuthority("ASESOR")
@@ -88,7 +92,7 @@ public class SecurityConfig {
             List<String> roles = jwt.getClaimAsStringList("roles");
             var authorities = (roles == null ? List.<String>of() : roles).stream()
                     .map(SimpleGrantedAuthority::new)
-                    .collect(Collectors.toList());
+                    .toList();
             // principal = sub (userId)
             return Mono.just(new JwtAuthenticationToken(jwt, authorities, jwt.getSubject()));
         };

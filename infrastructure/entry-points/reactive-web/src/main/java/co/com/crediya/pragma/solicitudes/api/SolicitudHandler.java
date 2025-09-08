@@ -46,7 +46,6 @@ public class SolicitudHandler {
     public Mono<ServerResponse> listenGetSolicitudes(ServerRequest serverRequest) {
         log.info("Procesando solicitud GET con query params: {}", serverRequest.queryParams());
         
-        // Construir SolicitudPageRequest desde query parameters
         SolicitudPageRequest pageRequest = pageRequestBuilder.buildFromQuery(serverRequest);
         log.info("PageRequest construido: page={}, size={}, sort={}, query={}", 
                 pageRequest.getPage(), pageRequest.getSize(), pageRequest.getSort(), pageRequest.getQuery());

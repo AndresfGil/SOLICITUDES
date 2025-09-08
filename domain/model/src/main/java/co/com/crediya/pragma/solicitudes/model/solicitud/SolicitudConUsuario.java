@@ -40,19 +40,18 @@ public class SolicitudConUsuario {
         
         SolicitudConUsuario result = new SolicitudConUsuario();
         
-        // datos básicos de solicitud desde SolicitudFieldsPage
-        result.setIdSolicitud(null); // No disponible en SolicitudFieldsPage
+        // datos desde SolicitudFieldsPag
+        result.setIdSolicitud(null); // No disponible
         result.setMonto(solicitudFields.monto());
         result.setPlazo(solicitudFields.plazo());
         result.setEmail(solicitudFields.email());
-        result.setDocumentoIdentidad(null); // No disponible en SolicitudFieldsPage
-        result.setIdEstado(null); // No disponible en SolicitudFieldsPage
-        result.setIdTipoPrestamo(null); // No disponible en SolicitudFieldsPage
+        result.setDocumentoIdentidad(null);
+        result.setIdEstado(null); // No disponible
+        result.setIdTipoPrestamo(null); // No disponible
         
-        // campos enriquecidos desde SolicitudFieldsPage
         result.setNombreTipoPrestamo(solicitudFields.tipoPrestamo());
         result.setEstadoSolicitud(solicitudFields.estado());
-        result.setTasaInteres(null); // No disponible en SolicitudFieldsPage
+        result.setTasaInteres(null); // No disponible
         
         // información del usuario
         if (userInfo != null) {
