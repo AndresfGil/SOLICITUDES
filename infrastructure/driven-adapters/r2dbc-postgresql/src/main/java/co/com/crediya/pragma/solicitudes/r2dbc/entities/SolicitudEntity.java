@@ -1,7 +1,7 @@
 package co.com.crediya.pragma.solicitudes.r2dbc.entities;
 
-import jakarta.persistence.Id;
 import lombok.*;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 

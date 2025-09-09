@@ -46,6 +46,7 @@ public class SecurityConfig {
 
                         // reglas de negocio
                         .pathMatchers(HttpMethod.GET, "/api/v1/solicitudes").hasAnyAuthority("ASESOR")
+                        .pathMatchers(HttpMethod.PUT, "/api/v1/solicitud").hasAnyAuthority("ASESOR")
                         .pathMatchers(HttpMethod.POST, "/api/v1/solicitudes").hasAuthority("CLIENTE")
                         .anyExchange().authenticated()
                 )

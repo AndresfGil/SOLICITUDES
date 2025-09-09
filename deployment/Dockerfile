@@ -4,6 +4,7 @@ WORKDIR $INSTALL_DIR
 COPY . $INSTALL_DIR
 RUN gradle clean
 RUN gradle bootJar
+
 FROM eclipse-temurin:17-jre AS runtime
 
 ENV INSTALL_DIR=/opt/app

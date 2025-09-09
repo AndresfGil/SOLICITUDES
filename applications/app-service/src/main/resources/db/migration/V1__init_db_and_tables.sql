@@ -16,8 +16,8 @@ SELECT * FROM (SELECT 'APROBADO', 'Solicitud aprobada') AS tmp
 WHERE NOT EXISTS (SELECT 1 FROM `${db}`.`estados` WHERE `nombre_estado` = 'APROBADO');
 
 INSERT INTO `${db}`.`estados` (`nombre_estado`, `descripcion_estado`)
-SELECT * FROM (SELECT 'DENEGADO', 'Solicitud denegada') AS tmp
-WHERE NOT EXISTS (SELECT 1 FROM `${db}`.`estados` WHERE `nombre_estado` = 'DENEGADO');
+SELECT * FROM (SELECT 'RECHAZADO', 'Solicitud rechazada') AS tmp
+WHERE NOT EXISTS (SELECT 1 FROM `${db}`.`estados` WHERE `nombre_estado` = 'RECHAZADO');
 
 
 

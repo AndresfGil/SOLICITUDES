@@ -1,6 +1,7 @@
 package co.com.crediya.pragma.solicitudes.api.docs;
 
 import co.com.crediya.pragma.solicitudes.api.SolicitudHandler;
+import co.com.crediya.pragma.solicitudes.api.dto.CambioEstadoDTO;
 import co.com.crediya.pragma.solicitudes.api.dto.SolicitudDTO;
 import co.com.crediya.pragma.solicitudes.api.dto.SolicitudResponseDTO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,6 +34,28 @@ public interface SolicitudControllerDocs {
                             description = "Crea una nueva solicitud de préstamo. Solo usuarios con rol CLIENTE pueden crear solicitudes.",
                             security = @SecurityRequirement(name = "Bearer Authentication"),
                             requestBody = @RequestBody(required = true, content = @Content(schema = @Schema(implementation = SolicitudDTO.class))),
+                            responses = {
+                                    @ApiResponse(responseCode = "200", description = "Solicitud creada exitosamente",
+                                            content = @Content(schema = @Schema(implementation = SolicitudResponseDTO.class))),
+                                    @ApiResponse(responseCode = "400", description = "Datos de solicitud inválidos o tipo de préstamo no encontrado"),
+                                    @ApiResponse(responseCode = "401", description = "Token no proporcionado o inválido"),
+                                    @ApiResponse(responseCode = "403", description = "Usuario no autorizado - Solo usuarios CLIENTE pueden crear solicitudes"),
+                                    @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+                            }
+                    )
+            ),
+            @RouterOperation(
+                    path = "/api/v1/solicitud",
+                    produces = MediaType.APPLICATION_JSON_VALUE,
+                    method = RequestMethod.PUT,
+                    beanClass = SolicitudHandler.class,
+                    beanMethod = "listenUpdateSolicitud",
+                    operation = @Operation(
+                            operationId = "updateEstadoSolicitud",
+                            summary = "Actualizar estado de una solicitud",
+                            description = "Actualiza una soplicitud. Solo usuarios con rol ASESOR pueden crear solicitudes.",
+                            security = @SecurityRequirement(name = "Bearer Authentication"),
+                            requestBody = @RequestBody(required = true, content = @Content(schema = @Schema(implementation = CambioEstadoDTO.class))),
                             responses = {
                                     @ApiResponse(responseCode = "200", description = "Solicitud creada exitosamente",
                                             content = @Content(schema = @Schema(implementation = SolicitudResponseDTO.class))),

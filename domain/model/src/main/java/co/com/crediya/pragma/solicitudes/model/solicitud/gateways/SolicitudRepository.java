@@ -10,6 +10,7 @@ public interface SolicitudRepository  {
 
     Mono<Solicitud> saveSolicitud(Solicitud solicitud);
 
+    Mono<Solicitud> findSolicitudById(Long idSolicitud);
 
     Mono<SolicitudPage<SolicitudFieldsPage>> page(SolicitudPageRequest pageRequest);
 

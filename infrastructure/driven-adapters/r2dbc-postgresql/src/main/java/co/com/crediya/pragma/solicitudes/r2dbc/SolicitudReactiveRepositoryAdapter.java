@@ -44,6 +44,13 @@ public class SolicitudReactiveRepositoryAdapter extends ReactiveAdapterOperation
     }
 
     @Override
+    public Mono<Solicitud> findSolicitudById(Long idSolicitud) {
+        return super.findById(idSolicitud)
+                .doOnSuccess(s -> log.info("Consulta de solicitud por ID {} exitosa", idSolicitud))
+                .doOnError(e -> log.warn("Error al consultar solicitud por ID {}: {}", idSolicitud, e.getMessage()));
+    }
+
+    @Override
     public Mono<SolicitudPage<SolicitudFieldsPage>> page(SolicitudPageRequest req) {
 
         // 1) inputs
