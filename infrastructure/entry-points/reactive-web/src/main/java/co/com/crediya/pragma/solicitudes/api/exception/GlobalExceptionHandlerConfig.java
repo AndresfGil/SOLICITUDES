@@ -1,7 +1,9 @@
 package co.com.crediya.pragma.solicitudes.api.exception;
 
-import co.com.crediya.pragma.solicitudes.model.auth.exception.InvalidTokenException;
-import co.com.crediya.pragma.solicitudes.model.auth.exception.UnauthorizedException;
+
+import co.com.crediya.pragma.solicitudes.model.auth.exception.*;
+import co.com.crediya.pragma.solicitudes.model.exception.InvalidCredentialsException;
+import co.com.crediya.pragma.solicitudes.model.exception.BaseException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.boot.autoconfigure.web.WebProperties;
 import org.springframework.boot.autoconfigure.web.reactive.error.AbstractErrorWebExceptionHandler;
@@ -59,10 +61,23 @@ public class GlobalExceptionHandlerConfig {
 
             HttpStatus status;
             ErrorResponse payload;
-//
 
+            log.error("[ERROR] {} on path={} correlationId={}", ex.getClass().getSimpleName(), request.path(), correlationId, ex);
+            log.error("Exception details: {}", ex.getMessage());
 
-            if (ex instanceof ConstraintViolationException cve) { // el validation del jakarta
+             if(ex instanceof InvalidCredentialsException ic) {
+                status = HttpStatus.UNAUTHORIZED;
+                payload = new ErrorResponse(
+                        ic.getErrorCode(),
+                        ic.getMessage(),
+                        status.value(),
+                        request.path(),
+                        java.time.Instant.now(),
+                        correlationId,
+                        null
+                );
+
+            } else if (ex instanceof ConstraintViolationException cve) {
                 status = HttpStatus.BAD_REQUEST;
                 List<ErrorDetail> details = cve.getConstraintViolations().stream()
                         .map(v -> new ErrorDetail(v.getPropertyPath().toString(), v.getMessage()))
@@ -75,14 +90,17 @@ public class GlobalExceptionHandlerConfig {
                         details,
                         correlationId
                 );
-            } else if (ex instanceof IllegalArgumentException iae) {
-                status = HttpStatus.BAD_REQUEST;
+            } else if (ex instanceof BaseException be) {
+                status = HttpStatus.valueOf(be.getStatusCode());
+                List<ErrorDetail> details = be.getErrors() == null ? null : be.getErrors().stream()
+                        .map(msg -> new ErrorDetail("", msg))
+                        .toList();
                 payload = ErrorResponse.of(
-                        "INVALID_ARGUMENT",
-                        iae.getMessage(),
+                        be.getErrorCode(),
+                        be.getMessage(),
                         status.value(),
                         request.path(),
-                        null,
+                        details,
                         correlationId
                 );
             } else if (ex instanceof UnauthorizedException ue) {
@@ -115,8 +133,17 @@ public class GlobalExceptionHandlerConfig {
                         null,
                         correlationId
                 );
-            }
-            else {
+            } else if (ex instanceof IllegalArgumentException iae) {
+                status = HttpStatus.BAD_REQUEST;
+                payload = ErrorResponse.of(
+                        "INVALID_ARGUMENT",
+                        iae.getMessage(),
+                        status.value(),
+                        request.path(),
+                        null,
+                        correlationId
+                );
+            } else {
                 status = HttpStatus.INTERNAL_SERVER_ERROR;
                 payload = ErrorResponse.of(
                         "INTERNAL_ERROR",

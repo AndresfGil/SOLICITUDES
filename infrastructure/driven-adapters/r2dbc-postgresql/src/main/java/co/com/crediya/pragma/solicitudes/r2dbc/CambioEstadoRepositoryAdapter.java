@@ -1,6 +1,6 @@
 package co.com.crediya.pragma.solicitudes.r2dbc;
 
-import co.com.crediya.pragma.solicitudes.model.notificaicones.CambioEstadoRepository;
+import co.com.crediya.pragma.solicitudes.model.notificaicones.gateways.CambioEstadoRepository;
 import co.com.crediya.pragma.solicitudes.model.solicitud.Solicitud;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.r2dbc.core.DatabaseClient;

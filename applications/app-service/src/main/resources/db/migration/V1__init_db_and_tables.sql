@@ -12,12 +12,12 @@ SELECT * FROM (SELECT 'PENDIENTE', 'Solicitud pendiente de revisión') AS tmp
 WHERE NOT EXISTS (SELECT 1 FROM `${db}`.`estados` WHERE `nombre_estado` = 'PENDIENTE');
 
 INSERT INTO `${db}`.`estados` (`nombre_estado`, `descripcion_estado`)
-SELECT * FROM (SELECT 'APROBADO', 'Solicitud aprobada') AS tmp
-WHERE NOT EXISTS (SELECT 1 FROM `${db}`.`estados` WHERE `nombre_estado` = 'APROBADO');
+SELECT * FROM (SELECT 'APROBADA', 'Solicitud aprobada') AS tmp
+WHERE NOT EXISTS (SELECT 1 FROM `${db}`.`estados` WHERE `nombre_estado` = 'APROBADA');
 
 INSERT INTO `${db}`.`estados` (`nombre_estado`, `descripcion_estado`)
-SELECT * FROM (SELECT 'RECHAZADO', 'Solicitud rechazada') AS tmp
-WHERE NOT EXISTS (SELECT 1 FROM `${db}`.`estados` WHERE `nombre_estado` = 'RECHAZADO');
+SELECT * FROM (SELECT 'RECHAZADA', 'Solicitud rechazada') AS tmp
+WHERE NOT EXISTS (SELECT 1 FROM `${db}`.`estados` WHERE `nombre_estado` = 'RECHAZADA');
 
 
 

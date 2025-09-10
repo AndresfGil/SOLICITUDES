@@ -3,6 +3,7 @@ package co.com.crediya.pragma.solicitudes.api.config.auth;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import co.com.crediya.pragma.solicitudes.model.exception.InvalidCredentialsException;
 import org.springframework.http.HttpMethod;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,6 +11,7 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
@@ -35,6 +37,10 @@ public class SecurityConfig {
                                           Converter<Jwt, Mono<AbstractAuthenticationToken>> jwtAuthConverter) {
         return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((exchange, ex) -> Mono.error(ex))
+                        .accessDeniedHandler((exchange, ex) -> Mono.error(ex))
+                )
                 .authorizeExchange(ex -> ex
                         // abre lo que deba estar público
                         .pathMatchers(HttpMethod.GET, "/actuator/health").permitAll()
@@ -51,6 +57,23 @@ public class SecurityConfig {
                         .anyExchange().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
+                        .authenticationEntryPoint((exchange, ex) -> {
+                            String msg;
+                            if (ex instanceof OAuth2AuthenticationException oae) {
+                                String errorCode = oae.getError().getErrorCode();
+                                String description = oae.getError().getDescription();
+                                if ("invalid_request".equals(errorCode)) {
+                                    msg = "Token de autorización no proporcionado o formato inválido";
+                                } else if ("invalid_token".equals(errorCode)) {
+                                    msg = (description != null && !description.isBlank()) ? description : "Token inválido o expirado";
+                                } else {
+                                    msg = (description != null && !description.isBlank()) ? description : oae.getMessage();
+                                }
+                            } else {
+                                msg = ex.getMessage();
+                            }
+                            return Mono.error(new InvalidCredentialsException(msg));
+                        })
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter))
                 )
                 .build();
