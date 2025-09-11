@@ -1,30 +1,32 @@
-FROM gradle:jdk17-corretto AS TEMP_BUILD_IMAGE
-ENV INSTALL_DIR=/opt/app
-WORKDIR $INSTALL_DIR
-COPY . $INSTALL_DIR
-RUN gradle clean
-RUN gradle bootJar
+# build
+FROM gradle:8.5-jdk21-jammy AS build
+WORKDIR /home/gradle/src
+COPY build.gradle settings.gradle ./
+COPY gradle gradle
+COPY . .
+RUN gradle clean bootJar --no-daemon
 
-FROM eclipse-temurin:17-jre AS runtime
+# runtime
+FROM eclipse-temurin:21-jdk-jammy AS runtime
+WORKDIR /opt/app
 
-ENV INSTALL_DIR=/opt/app
-
+# Crear usuario no root
 ARG USERNAME=user
 ARG USER_UID=999
 ARG USER_GID=$USER_UID
-
-
-WORKDIR $INSTALL_DIR
-
-COPY --from=TEMP_BUILD_IMAGE $INSTALL_DIR/applications/app-service/build/libs/*.jar $INSTALL_DIR/app.jar
-
 RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && chown -R $USER_UID:$USER_GID $INSTALL_DIR
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME
 
-USER user
+# Copiar el jar desde la etapa build
+COPY --from=build /home/gradle/src/applications/app-service/build/libs/*.jar app.jar
 
-
+# Configuración JVM
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
+
+# Puerto
 EXPOSE 8081
+
+# Ejecutar como usuario no root
+USER $USERNAME
+
 ENTRYPOINT ["java","-jar","/opt/app/app.jar"]
