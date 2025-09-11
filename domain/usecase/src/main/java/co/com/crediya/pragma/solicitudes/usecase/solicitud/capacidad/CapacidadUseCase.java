@@ -25,6 +25,8 @@ public class CapacidadUseCase {
                                 .map(aprobados -> ValidacionCapacidad.builder()
                                         .salarioBase(salario)
                                         .monto(solicitud.getMonto())
+                                        .idSolicitud(solicitud.getIdSolicitud())
+                                        .email(solicitud.getEmail())
                                         .tasaInteres(tipo.getTasaInteres())
                                         .plazo(solicitud.getPlazo())
                                         .prestamosAprobados(aprobados)

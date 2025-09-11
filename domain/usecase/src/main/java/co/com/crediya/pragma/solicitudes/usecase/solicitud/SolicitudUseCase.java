@@ -55,7 +55,7 @@ public class SolicitudUseCase {
                             .flatMap(solicitudValidada ->
                                     solicitudRepository.saveSolicitud(solicitudValidada)
                                             .flatMap(solicitudGuardada -> {
-                                                if (tipoPrestamo.getValidacionAutomatica()) {
+                                                if (Boolean.TRUE.equals(tipoPrestamo.getValidacionAutomatica())) {
                                                     return capacidadUseCase.validarCapacidad(solicitudGuardada)
                                                             .thenReturn(solicitudGuardada);
                                                 }

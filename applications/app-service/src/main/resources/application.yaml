@@ -13,7 +13,7 @@ spring:
     enabled: true
     url: "jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE_SOLICITUDES:solicitudes}"
     user: "${MYSQL_USER:root}"
-    password: "${MYSQL_PASSWORD:andres98}"
+    password: "${MYSQL_PASSWORD:root}"
     locations: "classpath:db/migration"
     connect-retries: 3
     placeholders:
@@ -44,7 +44,7 @@ adapters:
     port: "${MYSQL_PORT:3306}"
     database: "${MYSQL_DATABASE_SOLICITUDES:solicitudes}"
     username: "${MYSQL_USER:root}"
-    password: "${MYSQL_PASSWORD:andres98}"
+    password: "${MYSQL_PASSWORD:root}"
   authentication:
     base-url: "${AUTHENTICATION_BASE_URL:http://localhost:8080}"
 management:
@@ -71,7 +71,7 @@ adapter:
     queueUrl: "https://sqs.us-east-2.amazonaws.com/128121109692/notification-email-queue"
   sqscapacidad:
     region: "us-east-2"
-    queueUrl: "https://sqs.us-east-2.amazonaws.com/128121109692/capacidad_endeudamiento.fifo"
+    queueUrl: "https://sqs.us-east-2.amazonaws.com/128121109692/capacidad_endeudamiento"
 
 entrypoint:
   sqs:

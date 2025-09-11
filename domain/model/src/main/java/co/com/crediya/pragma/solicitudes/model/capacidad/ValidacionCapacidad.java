@@ -22,4 +22,6 @@ public class ValidacionCapacidad {
     private Integer tasaInteres;
     private Integer plazo;
     private List<PrestamoAprobado> prestamosAprobados;
+    private String email;
+    private Long idSolicitud;
 }

@@ -51,6 +51,24 @@ public class ValidacionCapacidadMapper {
         }
         json.append(",");
 
+        //email
+        json.append("\"email\":");
+        if (data.getEmail() != null) {
+            json.append("\"").append(data.getEmail()).append("\"");
+        } else {
+            json.append("null");
+        }
+        json.append(",");
+
+        //idSolicitud
+        json.append("\"idSolicitud\":");
+        if (data.getIdSolicitud() != null) {
+            json.append(data.getIdSolicitud());
+        } else {
+            json.append("null");
+        }
+        json.append(",");
+
         // prestamosAprobados
         json.append("\"prestamosAprobados\":");
         List<PrestamoAprobado> list = data.getPrestamosAprobados();

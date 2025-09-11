@@ -8,11 +8,6 @@ import org.springframework.stereotype.Component;
 @Log4j2
 public class EmailNotificationMapper {
 
-    /**
-     * Convierte un objeto EmailNotification a JSON string de forma manual
-     * @param emailNotification objeto a convertir
-     * @return JSON string del objeto
-     */
     public String toJson(EmailNotification emailNotification) {
         if (emailNotification == null) {
             return "null";
@@ -83,16 +78,12 @@ public class EmailNotificationMapper {
             json.append("null");
         }
 
+
         json.append("}");
 
         return json.toString();
     }
 
-    /**
-     * Escapa caracteres especiales en strings para JSON
-     * @param input string a escapar
-     * @return string escapado
-     */
     private String escapeJsonString(String input) {
         if (input == null) {
             return "";

@@ -38,8 +38,6 @@ public class SQSValidation implements CapacidadEndeudamientoRepository {
         return SendMessageRequest.builder()
                 .queueUrl(properties.queueUrl())
                 .messageBody(messageJson)
-                .messageGroupId("solicitudes")
-                .messageDeduplicationId(UUID.randomUUID().toString())
                 .build();
     }
 }
