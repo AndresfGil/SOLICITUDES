@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `${db}`.`tipo_prestamos` (
 
 -- Insertar tipos de préstamo por defecto (si no existen)
 INSERT INTO `${db}`.`tipo_prestamos` (`nombre`, `monto_minimo`, `monto_maximo`, `tasa_interes`, `validacion_automatica`)
-SELECT * FROM (SELECT 'Préstamo de Consumo', 500000, 5000000, 15.00, FALSE) AS tmp
+SELECT * FROM (SELECT 'Préstamo de Consumo', 500000, 5000000, 15.00, TRUE) AS tmp
 WHERE NOT EXISTS (SELECT 1 FROM `${db}`.`tipo_prestamos` WHERE `nombre` = 'Préstamo de Consumo');
 
 INSERT INTO `${db}`.`tipo_prestamos` (`nombre`, `monto_minimo`, `monto_maximo`, `tasa_interes`, `validacion_automatica`)
