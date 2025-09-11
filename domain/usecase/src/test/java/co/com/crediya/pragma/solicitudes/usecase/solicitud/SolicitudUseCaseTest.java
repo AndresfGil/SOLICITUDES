@@ -42,10 +42,10 @@ class SolicitudUseCaseTest {
 
     private SolicitudUseCase solicitudUseCase;
 
-    @BeforeEach
-    void setUp() {
-        solicitudUseCase = new SolicitudUseCase(solicitudRepository, tipoPrestamoRepository, authenticationGateway);
-    }
+//    @BeforeEach
+//    void setUp() {
+//        solicitudUseCase = new SolicitudUseCase(solicitudRepository, tipoPrestamoRepository, authenticationGateway);
+//    }
 
     @Test
     void saveSolicitud_WhenValidData_ShouldReturnSavedSolicitud() {

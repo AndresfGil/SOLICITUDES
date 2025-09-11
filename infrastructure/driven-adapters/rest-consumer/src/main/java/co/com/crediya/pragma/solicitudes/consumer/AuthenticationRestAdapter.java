@@ -1,6 +1,7 @@
 package co.com.crediya.pragma.solicitudes.consumer;
 
 import co.com.crediya.pragma.solicitudes.consumer.dto.*;
+import co.com.crediya.pragma.solicitudes.model.auth.UserValidateInfo;
 import co.com.crediya.pragma.solicitudes.model.page.UsersForPageResponse;
 import co.com.crediya.pragma.solicitudes.model.auth.gateways.AuthenticationGateway;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -28,19 +30,31 @@ public class AuthenticationRestAdapter implements AuthenticationGateway {
     private String authenticationBaseUrl;
 
     @Override
-    public Mono<Boolean> validateUser(String email, String documentoIdentidad) {
+    public Mono<UserValidateInfo> validateUser(String email, String documentoIdentidad) {
         log.info("Validando token con servicio de autenticación");
 
-        return bearer().flatMap(tok->
+        return bearer().flatMap(tok ->
                 webClient.post()
                         .uri(authenticationBaseUrl + "/api/v1/validate-user")
                         .headers(h -> h.setBearerAuth(tok))
-                        .bodyValue(new UserExistsRequest( email, documentoIdentidad))
+                        .bodyValue(new UserExistsRequest(email, documentoIdentidad))
                         .retrieve()
                         .bodyToMono(Map.class)
                         .map(response -> {
                             Boolean exists = (Boolean) response.get("exists");
-                            return exists != null ? exists : false;
+                            Object baseSalaryObj = response.get("baseSalary");
+                            BigDecimal baseSalary = null;
+                            if (baseSalaryObj != null) {
+                                if (baseSalaryObj instanceof Number num) {
+                                    baseSalary = BigDecimal.valueOf(num.doubleValue());
+                                } else {
+                                    baseSalary = new BigDecimal(baseSalaryObj.toString());
+                                }
+                            }
+                            return UserValidateInfo.builder()
+                                    .exists(exists != null && exists)
+                                    .baseSalary(baseSalary)
+                                    .build();
                         })
         );
     }
