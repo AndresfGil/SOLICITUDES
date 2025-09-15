@@ -1,5 +1,6 @@
 package co.com.crediya.pragma.solicitudes.r2dbc;
 
+import co.com.crediya.pragma.solicitudes.r2dbc.dto.PrestamoAprobadoDto;
 import co.com.crediya.pragma.solicitudes.r2dbc.dto.SolicitudFieldsDto;
 import co.com.crediya.pragma.solicitudes.r2dbc.entities.SolicitudEntity;
 import org.springframework.data.r2dbc.repository.Query;
@@ -34,9 +35,6 @@ public interface SolicitudReactiveRepository extends ReactiveCrudRepository<Soli
 
 
 
-
-
-
     @Query("""
         SELECT s.monto, s.plazo, s.email,
                tp.nombre AS tipo_prestamo,
@@ -56,6 +54,7 @@ public interface SolicitudReactiveRepository extends ReactiveCrudRepository<Soli
             @Param("offset") long offset
     );
 
+
     // COUNT
     @Query("""
         SELECT COUNT(*)
@@ -67,5 +66,15 @@ public interface SolicitudReactiveRepository extends ReactiveCrudRepository<Soli
     """)
     Mono<Long> countResumen(@Param("estado") String estado,
                             @Param("q") String q);
+
+
+    @Query("""
+        SELECT s.monto, s.plazo, tp.tasa_interes
+        FROM solicitudes s
+        INNER JOIN tipo_prestamos tp ON tp.id_tipo_prestamo = s.id_tipo_prestamo
+        WHERE LOWER(s.email) = LOWER(:email) AND s.id_estado = 2
+        ORDER BY s.id_solicitud ASC
+    """)
+    Flux<PrestamoAprobadoDto> findAprobadosByEmail(@Param("email") String email);
 
 }

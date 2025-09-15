@@ -3,6 +3,7 @@ import co.com.crediya.pragma.solicitudes.model.page.SolicitudFieldsPage;
 import co.com.crediya.pragma.solicitudes.model.page.SolicitudPage;
 import co.com.crediya.pragma.solicitudes.model.page.SolicitudPageRequest;
 import co.com.crediya.pragma.solicitudes.model.solicitud.Solicitud;
+import co.com.crediya.pragma.solicitudes.model.solicitud.PrestamoAprobado;
 import co.com.crediya.pragma.solicitudes.model.solicitud.gateways.SolicitudRepository;
 import co.com.crediya.pragma.solicitudes.r2dbc.dto.SolicitudFieldsDto;
 import co.com.crediya.pragma.solicitudes.r2dbc.entities.SolicitudEntity;
@@ -48,6 +49,21 @@ public class SolicitudReactiveRepositoryAdapter extends ReactiveAdapterOperation
         return super.findById(idSolicitud)
                 .doOnSuccess(s -> log.info("Consulta de solicitud por ID {} exitosa", idSolicitud))
                 .doOnError(e -> log.warn("Error al consultar solicitud por ID {}: {}", idSolicitud, e.getMessage()));
+    }
+
+    @Override
+    public Mono<List<PrestamoAprobado>> findSolicitudesAprovadas(String email) {
+        return repository.findAprobadosByEmail(email)
+                .doOnSubscribe(s -> log.info("Consultando préstamos aprobados email={} con id_estado=2", email))
+                .doOnNext(dto -> log.debug("Fila aprobada -> monto={}, plazo={}, tasaInteres={}", dto.getMonto(), dto.getPlazo(), dto.getTasaInteres()))
+                .map(dto -> PrestamoAprobado.builder()
+                        .monto(dto.getMonto())
+                        .plazo(dto.getPlazo())
+                        .tasaInteres(dto.getTasaInteres())
+                        .build())
+                .collectList()
+                .doOnNext(list -> log.info("Total préstamos aprobados encontrados para {}: {}", email, list.size()))
+                .doOnError(e -> log.error("Error consultando aprobados para {}: {}", email, e.getMessage()));
     }
 
     @Override

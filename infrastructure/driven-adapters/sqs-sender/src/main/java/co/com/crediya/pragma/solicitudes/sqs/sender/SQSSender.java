@@ -19,6 +19,8 @@ public class SQSSender implements EmailNotificationRepository {
     private final SqsAsyncClient client;
     private final EmailNotificationMapper emailNotificationMapper;
 
+
+
     public Mono<EmailNotification> sendNotification(EmailNotification message) {
         return Mono.fromCallable(() -> buildRequest(message))
                 .flatMap(request -> Mono.fromFuture(client.sendMessage(request)))

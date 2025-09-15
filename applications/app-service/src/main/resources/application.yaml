@@ -9,10 +9,8 @@ spring:
     console:
       enabled: true
       path: "/h2"
-
   flyway:
     enabled: true
-    # Flyway usará su propio DataSource JDBC si se provee esta URL
     url: "jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE_SOLICITUDES:solicitudes}"
     user: "${MYSQL_USER:root}"
     password: "${MYSQL_PASSWORD:andres98}"
@@ -20,22 +18,18 @@ spring:
     connect-retries: 3
     placeholders:
       db: "${adapters.r2dbc.database}"
-
 security:
   jwt:
     secret: "${JWT_KEY_SECRET:fQZJCefphgnEAnD9WlLBIQbpzV351d0mb3oGGsT6bvtaSqIZbTSId6wDwV3B1CbxEO7JlxQK6obNR9oUjDlYGg==}"
-
 app:
   issuer: "${JWT_ISSUER:PowerUp}"
   audience: "PowerUp-API"
-
 springdoc:
   api-docs:
     enabled: true
   swagger-ui:
     enabled: true
     path: "/swagger-ui.html"
-
 r2dbc:
   url: "r2dbc:mysql://${adapters.r2dbc.host}:${adapters.r2dbc.port}/${adapters.r2dbc.database}"
   username: "${adapters.r2dbc.username}"
@@ -44,8 +38,6 @@ r2dbc:
     initial-size: 5
     max-size: 20
     max-idle-time: "30m"
-
-
 adapters:
   r2dbc:
     host: "${MYSQL_HOST:localhost}"
@@ -53,11 +45,8 @@ adapters:
     database: "${MYSQL_DATABASE_SOLICITUDES:solicitudes}"
     username: "${MYSQL_USER:root}"
     password: "${MYSQL_PASSWORD:andres98}"
-
   authentication:
     base-url: "${AUTHENTICATION_BASE_URL:http://localhost:8080}"
-
-
 management:
   endpoints:
     web:
@@ -69,8 +58,6 @@ management:
         enabled: true
 cors:
   allowed-origins: "*"
-
-
 logging:
   pattern:
     console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSS-05:00}  %5p %d{pid} --- [%15.15t] %-40.40logger{39}\
@@ -78,8 +65,20 @@ logging:
   level:
     co.com.crediya.pragma.solicitudes: "INFO"
     org.springframework.web.reactive.function.client: "DEBUG"
-
 adapter:
   sqs:
     region: "us-east-2"
     queueUrl: "https://sqs.us-east-2.amazonaws.com/128121109692/notification-email-queue"
+  sqscapacidad:
+    region: "us-east-2"
+    queueUrl: "https://sqs.us-east-2.amazonaws.com/128121109692/capacidad_endeudamiento"
+
+entrypoint:
+  sqs:
+    region: "us-east-2"
+#    endpoint: "http://localhost:4566"
+    queueUrl: "https://sqs.us-east-2.amazonaws.com/128121109692/OUTPUT_QUEUE_URL"
+    waitTimeSeconds: 20
+    maxNumberOfMessages: 10
+    visibilityTimeoutSeconds: 10
+    numberOfThreads: 1

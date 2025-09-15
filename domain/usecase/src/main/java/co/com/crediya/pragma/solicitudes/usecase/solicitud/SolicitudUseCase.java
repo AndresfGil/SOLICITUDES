@@ -13,6 +13,7 @@ import co.com.crediya.pragma.solicitudes.model.solicitud.SolicitudConUsuario;
 import co.com.crediya.pragma.solicitudes.model.solicitud.SolicitudConUsuarioResponse;
 import co.com.crediya.pragma.solicitudes.model.solicitud.gateways.SolicitudRepository;
 import co.com.crediya.pragma.solicitudes.model.solicitud.gateways.TipoPrestamoRepository;
+import co.com.crediya.pragma.solicitudes.usecase.solicitud.capacidad.CapacidadUseCase;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
@@ -27,6 +28,7 @@ public class SolicitudUseCase {
     private final SolicitudRepository solicitudRepository;
     private final TipoPrestamoRepository tipoPrestamoRepository;
     private final AuthenticationGateway authenticationGateway;
+    private final CapacidadUseCase capacidadUseCase;
     private static final Long ESTADO_SOLICITUD_PENDIENTE  = 1L;
 
     public Mono<Solicitud> saveSolicitud(Solicitud solicitud) {
@@ -42,15 +44,24 @@ public class SolicitudUseCase {
                         return Mono.error(new MontoFueraDeRangoException(solicitud.getMonto(), montoMinimo, montoMaximo));
                     }
 
-                    // Validar que el usuario existe y es válido
                     return authenticationGateway.validateUser(solicitud.getEmail(), solicitud.getDocumentoIdentidad())
-                            .flatMap(isValid -> {
-                                if (!isValid) {
-                                    return Mono.error(new ValidationUserException(solicitud.getEmail(), solicitud.getDocumentoIdentidad()));
+                            .flatMap(info -> {
+                                if (!info.exists()) {
+                                    return Mono.error(new ValidationUserException(
+                                            solicitud.getEmail(), solicitud.getDocumentoIdentidad()));
                                 }
                                 return Mono.just(solicitud);
                             })
-                            .flatMap(solicitudRepository::saveSolicitud);
+                            .flatMap(solicitudValidada ->
+                                    solicitudRepository.saveSolicitud(solicitudValidada)
+                                            .flatMap(solicitudGuardada -> {
+                                                if (Boolean.TRUE.equals(tipoPrestamo.getValidacionAutomatica())) {
+                                                    return capacidadUseCase.validarCapacidad(solicitudGuardada)
+                                                            .thenReturn(solicitudGuardada);
+                                                }
+                                                return Mono.just(solicitudGuardada);
+                                            })
+                            );
                 });
     }
 
