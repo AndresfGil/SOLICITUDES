@@ -7,6 +7,7 @@ import co.com.crediya.pragma.solicitudes.model.exception.SolicitudNotFoundExcept
 import co.com.crediya.pragma.solicitudes.model.exception.TipoPrestamoNotFoundException;
 import co.com.crediya.pragma.solicitudes.model.notificaicones.CambioEstado;
 import co.com.crediya.pragma.solicitudes.model.notificaicones.EmailNotification;
+import co.com.crediya.pragma.solicitudes.model.notificaicones.EstadoValidacion;
 import co.com.crediya.pragma.solicitudes.model.notificaicones.gateways.CambioEstadoRepository;
 import co.com.crediya.pragma.solicitudes.model.notificaicones.gateways.EmailNotificationRepository;
 import co.com.crediya.pragma.solicitudes.model.solicitud.Solicitud;
@@ -15,233 +16,269 @@ import co.com.crediya.pragma.solicitudes.model.solicitud.gateways.TipoPrestamoRe
 import co.com.crediya.pragma.solicitudes.model.tipoprestamo.TipoPrestamo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
+import org.mockito.ArgumentCaptor;
+import co.com.crediya.pragma.solicitudes.model.notificaicones.PaymentPlan;
+import co.com.crediya.pragma.solicitudes.model.notificaicones.Totales;
 
-@ExtendWith(MockitoExtension.class)
 class EstadoUseCaseTest {
 
-    @Mock
     private SolicitudRepository solicitudRepository;
-
-    @Mock
     private CambioEstadoRepository cambioEstadoRepository;
-
-    @Mock
     private EmailNotificationRepository emailNotificationRepository;
-
-    @Mock
     private TipoPrestamoRepository tipoPrestamoRepository;
-
-    @Mock
     private EstadoRepository estadoRepository;
-
-    private EstadoUseCase estadoUseCase;
+    private EstadoUseCase useCase;
 
     @BeforeEach
     void setUp() {
-        estadoUseCase = new EstadoUseCase(
-                solicitudRepository,
-                cambioEstadoRepository,
-                emailNotificationRepository,
-                tipoPrestamoRepository,
-                estadoRepository
-        );
+        solicitudRepository = mock(SolicitudRepository.class);
+        cambioEstadoRepository = mock(CambioEstadoRepository.class);
+        emailNotificationRepository = mock(EmailNotificationRepository.class);
+        tipoPrestamoRepository = mock(TipoPrestamoRepository.class);
+        estadoRepository = mock(EstadoRepository.class);
+        useCase = new EstadoUseCase(solicitudRepository, cambioEstadoRepository, emailNotificationRepository, tipoPrestamoRepository, estadoRepository);
     }
 
     @Test
-    void updateEstado_Success_AprobadoMessageAndReturnUpdatedSolicitud() {
-        Long idSolicitud = 10L;
-        Long idEstadoNuevo = 2L;
-
-        Solicitud solicitud = Solicitud.builder()
-                .idSolicitud(idSolicitud)
-                .idTipoPrestamo(1L)
-                .email("cliente@example.com")
-                .documentoIdentidad("CC-123")
-                .monto(new BigDecimal("5000000"))
-                .idEstado(1L)
+    void updateEstado_success_sendsEmail() {
+        var cambio = CambioEstado.builder().idSolicitud(1L).idEstado(2L).build();
+        var solicitud = Solicitud.builder()
+                .idSolicitud(1L).idTipoPrestamo(10L).email("e@test.com").documentoIdentidad("123").monto(new BigDecimal("1000")).idEstado(1L)
                 .build();
+        var estado = Estado.builder().idEstado(2L).nombreEstado("APROBADO").build();
+        var tipo = TipoPrestamo.builder().idTipoPrestamo(10L).nombre("Libre Inversión").build();
 
-        Solicitud solicitudActualizada = solicitud.toBuilder()
-                .idEstado(idEstadoNuevo)
-                .build();
+        when(solicitudRepository.findSolicitudById(1L)).thenReturn(Mono.just(solicitud));
+        when(estadoRepository.findById(2L)).thenReturn(Mono.just(estado));
+        when(cambioEstadoRepository.updateEstado(any(Solicitud.class))).thenAnswer(inv -> Mono.just((Solicitud) inv.getArgument(0)));
+        when(tipoPrestamoRepository.findById(10L)).thenReturn(Mono.just(tipo));
+        when(estadoRepository.findById(2L)).thenReturn(Mono.just(estado));
+        when(emailNotificationRepository.sendNotification(any(EmailNotification.class))).thenAnswer(inv -> Mono.just((EmailNotification) inv.getArgument(0)));
 
-        Estado estado = Estado.builder()
-                .idEstado(idEstadoNuevo)
-                .nombreEstado("APROBADO")
-                .build();
-
-        TipoPrestamo tipoPrestamo = TipoPrestamo.builder()
-                .idTipoPrestamo(1L)
-                .nombre("Personal")
-                .montoMinimo(1000000)
-                .montoMaximo(10000000)
-                .tasaInteres(12)
-                .validacionAutomatica(true)
-                .build();
-
-        when(solicitudRepository.findSolicitudById(idSolicitud)).thenReturn(Mono.just(solicitud));
-        when(estadoRepository.findById(anyLong())).thenReturn(Mono.just(estado));
-        when(cambioEstadoRepository.updateEstado(any(Solicitud.class))).thenReturn(Mono.just(solicitudActualizada));
-        when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
-        when(emailNotificationRepository.sendNotification(any(EmailNotification.class)))
-                .thenAnswer(inv -> Mono.just(inv.getArgument(0)));
-
-        CambioEstado cambio = CambioEstado.builder().idSolicitud(idSolicitud).idEstado(idEstadoNuevo).build();
-
-        StepVerifier.create(estadoUseCase.updateEstado(cambio))
-                .expectNext(solicitudActualizada)
+        StepVerifier.create(useCase.updateEstado(cambio))
+                .assertNext(updated -> assertThat(updated.getIdEstado()).isEqualTo(2L))
                 .verifyComplete();
-
-        ArgumentCaptor<EmailNotification> captor = ArgumentCaptor.forClass(EmailNotification.class);
-        verify(emailNotificationRepository, times(1)).sendNotification(captor.capture());
-        EmailNotification sent = captor.getValue();
-        assertNotNull(sent);
-        assertEquals(idSolicitud, sent.getRequestId());
-        assertEquals("APROBADO", sent.getStatus());
-        assertEquals("cliente@example.com", sent.getEmailClient());
-        assertEquals("Personal", sent.getLoanType());
-        assertEquals(new BigDecimal("5000000"), sent.getLoanAmount());
-        assertNotNull(sent.getCustomMessage());
     }
 
     @Test
-    void updateEstado_WhenSolicitudNotFound_ThrowsSolicitudNotFoundException() {
-        Long idSolicitud = 99L;
-        when(solicitudRepository.findSolicitudById(idSolicitud)).thenReturn(Mono.empty());
+    void updateEstado_solicitudNotFound() {
+        var cambio = CambioEstado.builder().idSolicitud(9L).idEstado(2L).build();
+        when(solicitudRepository.findSolicitudById(9L)).thenReturn(Mono.empty());
 
-        CambioEstado cambio = CambioEstado.builder().idSolicitud(idSolicitud).idEstado(1L).build();
-
-        StepVerifier.create(estadoUseCase.updateEstado(cambio))
+        StepVerifier.create(useCase.updateEstado(cambio))
                 .expectError(SolicitudNotFoundException.class)
                 .verify();
     }
 
     @Test
-    void updateEstado_WhenEstadoNotFound_ThrowsEstadoNotFoundException() {
-        Long idSolicitud = 10L;
-        Long idEstadoNuevo = 888L;
+    void updateEstado_estadoNotFound() {
+        var cambio = CambioEstado.builder().idSolicitud(1L).idEstado(99L).build();
+        var solicitud = Solicitud.builder().idSolicitud(1L).idTipoPrestamo(10L).email("e@test.com").documentoIdentidad("123").monto(new BigDecimal("1000")).idEstado(1L).build();
+        when(solicitudRepository.findSolicitudById(1L)).thenReturn(Mono.just(solicitud));
+        when(estadoRepository.findById(99L)).thenReturn(Mono.empty());
 
-        Solicitud solicitud = Solicitud.builder()
-                .idSolicitud(idSolicitud)
-                .idTipoPrestamo(1L)
-                .email("cliente@example.com")
-                .documentoIdentidad("CC-123")
-                .monto(new BigDecimal("5000000"))
-                .idEstado(1L)
-                .build();
-
-        when(solicitudRepository.findSolicitudById(idSolicitud)).thenReturn(Mono.just(solicitud));
-        when(estadoRepository.findById(idEstadoNuevo)).thenReturn(Mono.empty());
-
-        CambioEstado cambio = CambioEstado.builder().idSolicitud(idSolicitud).idEstado(idEstadoNuevo).build();
-
-        StepVerifier.create(estadoUseCase.updateEstado(cambio))
+        StepVerifier.create(useCase.updateEstado(cambio))
                 .expectError(EstadoNotFoundException.class)
                 .verify();
     }
 
+
+
     @Test
-    void updateEstado_WhenTipoPrestamoNotFound_ThrowsTipoPrestamoNotFoundException() {
-        Long idSolicitud = 10L;
-        Long idEstadoNuevo = 2L;
+    void updateEstadoValidacion_solicitudNotFound() {
+        var valid = EstadoValidacion.builder().idSolicitud(77L).status("RECHAZADA").build();
+        when(solicitudRepository.findSolicitudById(77L)).thenReturn(Mono.empty());
 
-        Solicitud solicitud = Solicitud.builder()
-                .idSolicitud(idSolicitud)
-                .idTipoPrestamo(999L)
-                .email("cliente@example.com")
-                .documentoIdentidad("CC-123")
-                .monto(new BigDecimal("5000000"))
-                .idEstado(1L)
+        StepVerifier.create(useCase.updateEstadoValidacion(valid))
+                .expectError(SolicitudNotFoundException.class)
+                .verify();
+    }
+
+    @Test
+    void updateEstado_emailBuilder_tipoPrestamoNotFound() {
+        var cambio = CambioEstado.builder().idSolicitud(2L).idEstado(2L).build();
+        var solicitud = Solicitud.builder()
+                .idSolicitud(2L).idTipoPrestamo(20L).email("e2@test.com").documentoIdentidad("456").monto(new BigDecimal("2000")).idEstado(1L)
                 .build();
+        var estado = Estado.builder().idEstado(2L).nombreEstado("APROBADO").build();
 
-        Solicitud solicitudActualizada = solicitud.toBuilder().idEstado(idEstadoNuevo).build();
-        Estado estado = Estado.builder().idEstado(idEstadoNuevo).nombreEstado("PENDIENTE").build();
+        when(solicitudRepository.findSolicitudById(2L)).thenReturn(Mono.just(solicitud));
+        when(estadoRepository.findById(2L)).thenReturn(Mono.just(estado));
+        when(cambioEstadoRepository.updateEstado(any(Solicitud.class))).thenAnswer(inv -> Mono.just((Solicitud) inv.getArgument(0)));
+        when(tipoPrestamoRepository.findById(20L)).thenReturn(Mono.empty());
 
-        when(solicitudRepository.findSolicitudById(idSolicitud)).thenReturn(Mono.just(solicitud));
-        when(estadoRepository.findById(anyLong())).thenReturn(Mono.just(estado));
-        when(cambioEstadoRepository.updateEstado(any(Solicitud.class))).thenReturn(Mono.just(solicitudActualizada));
-        when(tipoPrestamoRepository.findById(999L)).thenReturn(Mono.empty());
-
-        CambioEstado cambio = CambioEstado.builder().idSolicitud(idSolicitud).idEstado(idEstadoNuevo).build();
-
-        StepVerifier.create(estadoUseCase.updateEstado(cambio))
+        StepVerifier.create(useCase.updateEstado(cambio))
                 .expectError(TipoPrestamoNotFoundException.class)
                 .verify();
     }
 
     @Test
-    void updateEstado_BuildsCustomMessage_Rechazado() {
-        assertCustomMessageForEstado("RECHAZADO");
+    void updateEstado_emailBuilder_estadoNotFoundAfterUpdate() {
+        var cambio = CambioEstado.builder().idSolicitud(3L).idEstado(2L).build();
+        var solicitud = Solicitud.builder()
+                .idSolicitud(3L).idTipoPrestamo(30L).email("e3@test.com").documentoIdentidad("789").monto(new BigDecimal("3000")).idEstado(1L)
+                .build();
+        var estado = Estado.builder().idEstado(2L).nombreEstado("APROBADO").build();
+        var tipo = TipoPrestamo.builder().idTipoPrestamo(30L).nombre("Educativo").build();
+
+        when(solicitudRepository.findSolicitudById(3L)).thenReturn(Mono.just(solicitud));
+        // First call (pre-update check) returns estado, second call (email builder) returns empty
+        when(estadoRepository.findById(2L)).thenReturn(Mono.just(estado), Mono.<Estado>empty());
+        when(cambioEstadoRepository.updateEstado(any(Solicitud.class))).thenAnswer(inv -> Mono.just((Solicitud) inv.getArgument(0)));
+        when(tipoPrestamoRepository.findById(30L)).thenReturn(Mono.just(tipo));
+
+        StepVerifier.create(useCase.updateEstado(cambio))
+                .expectError(EstadoNotFoundException.class)
+                .verify();
     }
 
     @Test
-    void updateEstado_BuildsCustomMessage_Pendiente() {
-        assertCustomMessageForEstado("PENDIENTE");
-    }
+    void updateEstadoValidacion_success_aprobada_includesPlanAndTotales() {
+        var valid = EstadoValidacion.builder()
+                .idSolicitud(10L)
+                .status("APROBADO")
+                .email("cliente@test.com")
+                .cuotaNueva(new BigDecimal("150.50"))
+                .capacidadDisponible(new BigDecimal("800.00"))
+                .interesMensual(new BigDecimal("0.015"))
+                .plazoMeses(24)
+                .paymentPlan(buildPaymentPlan(7))
+                .totales(Totales.builder().totalIntereses(new BigDecimal("500.00")).totalPagado(new BigDecimal("3650.00")).build())
+                .build();
 
-    @Test
-    void updateEstado_BuildsCustomMessage_Default() {
-        assertCustomMessageForEstado("EN_REVISION");
-    }
-
-    private void assertCustomMessageForEstado(String nombreEstado) {
-        Long idSolicitud = 20L;
-        Long idEstadoNuevo = 3L;
-
-        Solicitud solicitud = Solicitud.builder()
-                .idSolicitud(idSolicitud)
-                .idTipoPrestamo(1L)
-                .email("cliente2@example.com")
-                .documentoIdentidad("CC-456")
-                .monto(new BigDecimal("3000000"))
+        var solicitud = Solicitud.builder()
+                .idSolicitud(10L).idTipoPrestamo(40L).email("cliente@test.com").documentoIdentidad("CC9988").monto(new BigDecimal("3000"))
                 .idEstado(1L)
                 .build();
+        var tipo = TipoPrestamo.builder().idTipoPrestamo(40L).nombre("Libre Inversión").build();
+        var estado = Estado.builder().idEstado(2L).nombreEstado("APROBADA").build();
 
-        Solicitud solicitudActualizada = solicitud.toBuilder().idEstado(idEstadoNuevo).build();
+        when(solicitudRepository.findSolicitudById(10L)).thenReturn(Mono.just(solicitud));
+        when(cambioEstadoRepository.updateEstado(any(Solicitud.class))).thenAnswer(inv -> Mono.just((Solicitud) inv.getArgument(0)));
+        when(tipoPrestamoRepository.findById(40L)).thenReturn(Mono.just(tipo));
+        when(estadoRepository.findById(2L)).thenReturn(Mono.just(estado));
+        when(emailNotificationRepository.sendNotification(any(EmailNotification.class))).thenAnswer(inv -> Mono.just((EmailNotification) inv.getArgument(0)));
 
-        Estado estado = Estado.builder().idEstado(idEstadoNuevo).nombreEstado(nombreEstado).build();
-        TipoPrestamo tipoPrestamo = TipoPrestamo.builder()
-                .idTipoPrestamo(1L)
-                .nombre("Libre Inversión")
-                .montoMinimo(1000000)
-                .montoMaximo(10000000)
-                .tasaInteres(14)
-                .validacionAutomatica(true)
-                .build();
-
-        when(solicitudRepository.findSolicitudById(idSolicitud)).thenReturn(Mono.just(solicitud));
-        when(estadoRepository.findById(anyLong())).thenReturn(Mono.just(estado));
-        when(cambioEstadoRepository.updateEstado(any(Solicitud.class))).thenReturn(Mono.just(solicitudActualizada));
-        when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
-        when(emailNotificationRepository.sendNotification(any(EmailNotification.class)))
-                .thenAnswer(inv -> Mono.just(inv.getArgument(0)));
-
-        CambioEstado cambio = CambioEstado.builder().idSolicitud(idSolicitud).idEstado(idEstadoNuevo).build();
-
-        StepVerifier.create(estadoUseCase.updateEstado(cambio))
-                .expectNext(solicitudActualizada)
+        StepVerifier.create(useCase.updateEstadoValidacion(valid))
+                .expectNext(valid)
                 .verifyComplete();
 
         ArgumentCaptor<EmailNotification> captor = ArgumentCaptor.forClass(EmailNotification.class);
         verify(emailNotificationRepository, times(1)).sendNotification(captor.capture());
-        EmailNotification sent = captor.getValue();
-        assertNotNull(sent.getCustomMessage());
+        String msg = captor.getValue().getCustomMessage();
+        assertThat(msg).contains("DETALLES DEL PRÉSTAMO");
+        assertThat(msg).contains("PLAN DE PAGOS");
+        assertThat(msg).contains("... y 2 cuotas más");
     }
+
+    @Test
+    void updateEstadoValidacion_success_rechazada_message() {
+        var valid = EstadoValidacion.builder()
+                .idSolicitud(11L)
+                .status("RECHAZADO")
+                .email("cliente2@test.com")
+                .build();
+
+        var solicitud = Solicitud.builder()
+                .idSolicitud(11L).idTipoPrestamo(41L).email("cliente2@test.com").documentoIdentidad("CC1122").monto(new BigDecimal("4000"))
+                .idEstado(1L)
+                .build();
+        var tipo = TipoPrestamo.builder().idTipoPrestamo(41L).nombre("Educativo").build();
+        var estado = Estado.builder().idEstado(3L).nombreEstado("RECHAZADA").build();
+
+        when(solicitudRepository.findSolicitudById(11L)).thenReturn(Mono.just(solicitud));
+        when(cambioEstadoRepository.updateEstado(any(Solicitud.class))).thenAnswer(inv -> Mono.just((Solicitud) inv.getArgument(0)));
+        when(tipoPrestamoRepository.findById(41L)).thenReturn(Mono.just(tipo));
+        when(estadoRepository.findById(3L)).thenReturn(Mono.just(estado));
+        when(emailNotificationRepository.sendNotification(any(EmailNotification.class))).thenAnswer(inv -> Mono.just((EmailNotification) inv.getArgument(0)));
+
+        StepVerifier.create(useCase.updateEstadoValidacion(valid))
+                .expectNext(valid)
+                .verifyComplete();
+
+        ArgumentCaptor<EmailNotification> captor = ArgumentCaptor.forClass(EmailNotification.class);
+        verify(emailNotificationRepository, times(1)).sendNotification(captor.capture());
+        String msg = captor.getValue().getCustomMessage();
+        assertThat(msg).contains("no ha sido aprobada");
+    }
+
+    @Test
+    void updateEstadoValidacion_default_message_branch() {
+        var valid = EstadoValidacion.builder()
+                .idSolicitud(12L)
+                .status("DESCONOCIDO")
+                .email("cliente3@test.com")
+                .build();
+
+        var solicitud = Solicitud.builder()
+                .idSolicitud(12L).idTipoPrestamo(42L).email("cliente3@test.com").documentoIdentidad("CC3344").monto(new BigDecimal("5000"))
+                .idEstado(1L)
+                .build();
+        var tipo = TipoPrestamo.builder().idTipoPrestamo(42L).nombre("Vehículo").build();
+        var estado = Estado.builder().idEstado(1L).nombreEstado("EN REVISION").build();
+
+        when(solicitudRepository.findSolicitudById(12L)).thenReturn(Mono.just(solicitud));
+        when(cambioEstadoRepository.updateEstado(any(Solicitud.class))).thenAnswer(inv -> Mono.just((Solicitud) inv.getArgument(0)));
+        when(tipoPrestamoRepository.findById(42L)).thenReturn(Mono.just(tipo));
+        when(estadoRepository.findById(1L)).thenReturn(Mono.just(estado));
+        when(emailNotificationRepository.sendNotification(any(EmailNotification.class))).thenAnswer(inv -> Mono.just((EmailNotification) inv.getArgument(0)));
+
+        StepVerifier.create(useCase.updateEstadoValidacion(valid))
+                .expectNext(valid)
+                .verifyComplete();
+
+        ArgumentCaptor<EmailNotification> captor = ArgumentCaptor.forClass(EmailNotification.class);
+        verify(emailNotificationRepository, times(1)).sendNotification(captor.capture());
+        String msg = captor.getValue().getCustomMessage();
+        assertThat(msg).contains("ha cambiado de estado a: EN REVISION");
+    }
+
+    @Test
+    void updateEstadoValidacion_emailBuilder_tipoPrestamoNotFound() {
+        var valid = EstadoValidacion.builder()
+                .idSolicitud(13L)
+                .status("APROBADO")
+                .email("cliente4@test.com")
+                .build();
+
+        var solicitud = Solicitud.builder()
+                .idSolicitud(13L).idTipoPrestamo(43L).email("cliente4@test.com").documentoIdentidad("CC5566").monto(new BigDecimal("6000"))
+                .idEstado(1L)
+                .build();
+        var estado = Estado.builder().idEstado(2L).nombreEstado("APROBADA").build();
+
+        when(solicitudRepository.findSolicitudById(13L)).thenReturn(Mono.just(solicitud));
+        when(cambioEstadoRepository.updateEstado(any(Solicitud.class))).thenAnswer(inv -> Mono.just((Solicitud) inv.getArgument(0)));
+        when(tipoPrestamoRepository.findById(43L)).thenReturn(Mono.empty());
+        when(estadoRepository.findById(2L)).thenReturn(Mono.just(estado));
+
+        StepVerifier.create(useCase.updateEstadoValidacion(valid))
+                .expectError(TipoPrestamoNotFoundException.class)
+                .verify();
+    }
+
+    private List<PaymentPlan> buildPaymentPlan(int n) {
+        List<PaymentPlan> list = new ArrayList<>();
+        for (int i = 1; i <= n; i++) {
+            list.add(PaymentPlan.builder()
+                    .n(i)
+                    .cuota(new BigDecimal("100.00").add(new BigDecimal(i)))
+                    .interes(new BigDecimal("10.00"))
+                    .abonoCapital(new BigDecimal("90.00"))
+                    .saldo(new BigDecimal("1000.00").subtract(new BigDecimal(i * 10)))
+                    .build());
+        }
+        return list;
+    }
+
 }
-
-
-

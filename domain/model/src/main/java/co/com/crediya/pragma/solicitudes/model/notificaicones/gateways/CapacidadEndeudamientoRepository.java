@@ -5,7 +5,4 @@ import reactor.core.publisher.Mono;
 
 public interface CapacidadEndeudamientoRepository {
     Mono<ValidacionCapacidad> sendInfoValidation(ValidacionCapacidad validacionCapacidad);
-
-
-
 }
