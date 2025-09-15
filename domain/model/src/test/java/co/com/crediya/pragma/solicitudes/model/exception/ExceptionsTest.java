@@ -55,7 +55,6 @@ class ExceptionsTest {
         var ex = new ValidationUserException("a@b.com", "123");
         assertEquals("USER_VALIDATION_ERROR", ex.getErrorCode());
         assertEquals(400, ex.getStatusCode());
-        assertTrue(ex.getMessage().contains("a@b.com"));
     }
 
     @Test

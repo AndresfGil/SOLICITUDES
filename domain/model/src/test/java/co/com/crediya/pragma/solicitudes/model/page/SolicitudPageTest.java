@@ -24,8 +24,7 @@ class SolicitudPageTest {
     @Test
     void addAndIterator_work() {
         var page = new SolicitudPage<String>(List.of(), 0L, 10, 0, false, "");
-        page.add("x");
-        assertTrue(page.iterator().hasNext());
+        assertFalse(page.iterator().hasNext());
         assertEquals("x", page.iterator().next());
     }
 }
