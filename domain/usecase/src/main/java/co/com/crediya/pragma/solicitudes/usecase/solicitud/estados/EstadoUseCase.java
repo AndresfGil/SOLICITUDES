@@ -1,5 +1,7 @@
 package co.com.crediya.pragma.solicitudes.usecase.solicitud.estados;
 
+import co.com.crediya.pragma.solicitudes.model.aprobacion.SolicitudAprobada;
+import co.com.crediya.pragma.solicitudes.model.aprobacion.gateway.SolicitudAprobadaRepository;
 import co.com.crediya.pragma.solicitudes.model.estado.Estado;
 import co.com.crediya.pragma.solicitudes.model.estado.EstadoEnum;
 import co.com.crediya.pragma.solicitudes.model.estado.gateways.EstadoRepository;
@@ -18,10 +20,13 @@ import co.com.crediya.pragma.solicitudes.model.tipoprestamo.TipoPrestamo;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDateTime;
+
 @RequiredArgsConstructor
 public class EstadoUseCase {
     private final SolicitudRepository solicitudRepository;
     private final CambioEstadoRepository cambioEstadoRepository;
+    private final SolicitudAprobadaRepository solicitudAprobadaRepository;
     private final EmailNotificationRepository emailNotificationRepository;
     private final TipoPrestamoRepository tipoPrestamoRepository;
     private final EstadoRepository estadoRepository;
@@ -36,25 +41,50 @@ public class EstadoUseCase {
                             solicitud.setIdEstado(cambioEstado.getIdEstado());
                             return cambioEstadoRepository.updateEstado(solicitud);
                         }))
-                .flatMap(solicitud -> buildEmailNotification(solicitud)
-                        .flatMap(emailNotificationRepository::sendNotification)
-                        .thenReturn(solicitud));
+                .flatMap(solicitud -> {
+                    Mono<Void> saveAprobada = Mono.empty();
+                    if (solicitud.getIdEstado().equals(2L)) {
+                        SolicitudAprobada aprobada = new SolicitudAprobada(
+                                LocalDateTime.now().toString(),
+                                solicitud.getMonto()
+                        );
+                        saveAprobada = solicitudAprobadaRepository.saveSolicitudAprobada(aprobada).then();
+                    }
+
+                    return saveAprobada
+                            .then(buildEmailNotification(solicitud)
+                                    .flatMap(emailNotificationRepository::sendNotification)
+                                    .thenReturn(solicitud));
+                });
     }
 
 
-    public Mono<EstadoValidacion> updateEstadoValidacion(EstadoValidacion estadoValidacion){
+
+    public Mono<EstadoValidacion> updateEstadoValidacion(EstadoValidacion estadoValidacion) {
         return solicitudRepository.findSolicitudById(estadoValidacion.getIdSolicitud())
                 .switchIfEmpty(Mono.error(new SolicitudNotFoundException(estadoValidacion.getIdSolicitud())))
                 .flatMap(solicitud -> {
                     EstadoEnum estadoEnum = EstadoEnum.fromStatusJson(estadoValidacion.getStatus());
                     solicitud.setIdEstado(estadoEnum.getId());
-                    
                     return cambioEstadoRepository.updateEstado(solicitud);
                 })
-                .flatMap(solicitud -> buildEmailNotification(solicitud, estadoValidacion)
-                        .flatMap(emailNotificationRepository::sendNotification)
-                        .thenReturn(estadoValidacion));
+                .flatMap(solicitud -> {
+                    Mono<Void> saveAprobada = Mono.empty();
+                    if (solicitud.getIdEstado().equals(2L)) {
+                        SolicitudAprobada aprobada = new SolicitudAprobada(
+                                LocalDateTime.now().toString(),
+                                solicitud.getMonto()
+                        );
+                        saveAprobada = solicitudAprobadaRepository.saveSolicitudAprobada(aprobada).then();
+                    }
+
+                    return saveAprobada
+                            .then(buildEmailNotification(solicitud, estadoValidacion)
+                                    .flatMap(emailNotificationRepository::sendNotification)
+                                    .thenReturn(estadoValidacion));
+                });
     }
+
 
 
     private Mono<EmailNotification> buildEmailNotification(Solicitud solicitud) {

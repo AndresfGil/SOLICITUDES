@@ -8,7 +8,4 @@ public interface EmailNotificationRepository {
 
     Mono<EmailNotification> sendNotification(EmailNotification emailNotification);
 
-
-
-
 }

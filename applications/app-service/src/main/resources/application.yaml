@@ -72,6 +72,9 @@ adapter:
   sqscapacidad:
     region: "us-east-2"
     queueUrl: "https://sqs.us-east-2.amazonaws.com/128121109692/capacidad_endeudamiento"
+  sqsaprobacion:
+    region: "us-east-2"
+    queueUrl: "https://sqs.us-east-2.amazonaws.com/128121109692/solicitud_aprobada"
 
 entrypoint:
   sqs:

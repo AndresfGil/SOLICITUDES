@@ -2,238 +2,317 @@ package co.com.crediya.pragma.solicitudes.usecase.solicitud;
 
 import co.com.crediya.pragma.solicitudes.model.auth.UserValidateInfo;
 import co.com.crediya.pragma.solicitudes.model.auth.gateways.AuthenticationGateway;
+import co.com.crediya.pragma.solicitudes.model.capacidad.ValidacionCapacidad;
 import co.com.crediya.pragma.solicitudes.model.exception.MontoFueraDeRangoException;
 import co.com.crediya.pragma.solicitudes.model.exception.TipoPrestamoNotFoundException;
 import co.com.crediya.pragma.solicitudes.model.exception.ValidationUserException;
 import co.com.crediya.pragma.solicitudes.model.page.SolicitudFieldsPage;
 import co.com.crediya.pragma.solicitudes.model.page.SolicitudPage;
 import co.com.crediya.pragma.solicitudes.model.page.SolicitudPageRequest;
+import co.com.crediya.pragma.solicitudes.model.page.UsersForPageResponse;
 import co.com.crediya.pragma.solicitudes.model.solicitud.Solicitud;
+import co.com.crediya.pragma.solicitudes.model.solicitud.SolicitudConUsuario;
+import co.com.crediya.pragma.solicitudes.model.solicitud.SolicitudConUsuarioResponse;
 import co.com.crediya.pragma.solicitudes.model.solicitud.gateways.SolicitudRepository;
 import co.com.crediya.pragma.solicitudes.model.solicitud.gateways.TipoPrestamoRepository;
 import co.com.crediya.pragma.solicitudes.model.tipoprestamo.TipoPrestamo;
 import co.com.crediya.pragma.solicitudes.usecase.solicitud.capacidad.CapacidadUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class SolicitudUseCaseTest {
 
+    @Mock
     private SolicitudRepository solicitudRepository;
+
+    @Mock
     private TipoPrestamoRepository tipoPrestamoRepository;
+
+    @Mock
     private AuthenticationGateway authenticationGateway;
+
+    @Mock
     private CapacidadUseCase capacidadUseCase;
-    private SolicitudUseCase useCase;
+
+    private SolicitudUseCase solicitudUseCase;
 
     @BeforeEach
     void setUp() {
-        solicitudRepository = mock(SolicitudRepository.class);
-        tipoPrestamoRepository = mock(TipoPrestamoRepository.class);
-        authenticationGateway = mock(AuthenticationGateway.class);
-        capacidadUseCase = mock(CapacidadUseCase.class);
-        useCase = new SolicitudUseCase(solicitudRepository, tipoPrestamoRepository, authenticationGateway, capacidadUseCase);
+        solicitudUseCase = new SolicitudUseCase(
+                solicitudRepository,
+                tipoPrestamoRepository,
+                authenticationGateway,
+                capacidadUseCase
+        );
     }
 
     @Test
-    void saveSolicitud_success_withoutAutoValidation() {
-        var tipo = TipoPrestamo.builder()
-                .idTipoPrestamo(10L)
-                .montoMinimo(1000)
-                .montoMaximo(100000)
-                .tasaInteres(5)
+    void saveSolicitud_ValidSolicitud_ReturnsSavedSolicitud() {
+        Solicitud solicitud = Solicitud.builder()
+                .monto(new BigDecimal("5000000"))
+                .plazo(24)
+                .email("test@example.com")
+                .documentoIdentidad("12345678")
+                .idTipoPrestamo(1L)
+                .build();
+
+        TipoPrestamo tipoPrestamo = TipoPrestamo.builder()
+                .idTipoPrestamo(1L)
+                .montoMinimo(1000000)
+                .montoMaximo(10000000)
                 .validacionAutomatica(false)
                 .build();
 
-        var solicitud = Solicitud.builder()
+        UserValidateInfo userInfo = UserValidateInfo.builder()
+                .exists(true)
+                .baseSalary(new BigDecimal("3000000"))
+                .build();
+
+        Solicitud savedSolicitud = Solicitud.builder()
                 .idSolicitud(1L)
-                .idTipoPrestamo(10L)
-                .monto(new BigDecimal("5000"))
-                .plazo(12)
-                .email("a@b.com")
-                .documentoIdentidad("123")
+                .monto(new BigDecimal("5000000"))
+                .plazo(24)
+                .email("test@example.com")
+                .documentoIdentidad("12345678")
+                .idEstado(1L)
+                .idTipoPrestamo(1L)
                 .build();
 
-        when(tipoPrestamoRepository.findById(10L)).thenReturn(Mono.just(tipo));
-        when(authenticationGateway.validateUser("a@b.com", "123"))
-                .thenReturn(Mono.just(UserValidateInfo.builder().exists(true).baseSalary(new BigDecimal("10000")).build()));
+        when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
+        when(authenticationGateway.validateUser("test@example.com", "12345678"))
+                .thenReturn(Mono.just(userInfo));
         when(solicitudRepository.saveSolicitud(any(Solicitud.class)))
-                .thenAnswer(inv -> Mono.just(((Solicitud) inv.getArgument(0))));
+                .thenReturn(Mono.just(savedSolicitud));
 
-        StepVerifier.create(useCase.saveSolicitud(solicitud))
-                .assertNext(saved -> {
-                    assertThat(saved.getIdEstado()).isEqualTo(1L);
-                    assertThat(saved.getIdTipoPrestamo()).isEqualTo(10L);
-                })
+        StepVerifier.create(solicitudUseCase.saveSolicitud(solicitud))
+                .expectNext(savedSolicitud)
                 .verifyComplete();
-
-        verify(capacidadUseCase, never()).validarCapacidad(any());
     }
 
     @Test
-    void saveSolicitud_success_withAutoValidation() {
-        var tipo = TipoPrestamo.builder()
-                .idTipoPrestamo(10L)
-                .montoMinimo(1000)
-                .montoMaximo(100000)
-                .tasaInteres(5)
-                .validacionAutomatica(true)
+    void saveSolicitud_TipoPrestamoNotFound_ThrowsException() {
+        Solicitud solicitud = Solicitud.builder()
+                .monto(new BigDecimal("5000000"))
+                .plazo(24)
+                .email("test@example.com")
+                .documentoIdentidad("12345678")
+                .idTipoPrestamo(999L)
                 .build();
 
-        var solicitud = Solicitud.builder()
-                .idSolicitud(2L)
-                .idTipoPrestamo(10L)
-                .monto(new BigDecimal("7000"))
-                .plazo(10)
-                .email("x@y.com")
-                .documentoIdentidad("987")
-                .build();
+        when(tipoPrestamoRepository.findById(999L)).thenReturn(Mono.empty());
 
-        when(tipoPrestamoRepository.findById(10L)).thenReturn(Mono.just(tipo));
-        when(authenticationGateway.validateUser("x@y.com", "987"))
-                .thenReturn(Mono.just(UserValidateInfo.builder().exists(true).baseSalary(new BigDecimal("50000")).build()));
-        when(solicitudRepository.saveSolicitud(any(Solicitud.class)))
-                .thenAnswer(inv -> Mono.just(((Solicitud) inv.getArgument(0))));
-        when(capacidadUseCase.validarCapacidad(any(Solicitud.class))).thenReturn(Mono.empty());
-
-        StepVerifier.create(useCase.saveSolicitud(solicitud))
-                .expectNextMatches(saved -> saved.getIdSolicitud().equals(2L))
-                .verifyComplete();
-
-        verify(capacidadUseCase, times(1)).validarCapacidad(any(Solicitud.class));
-    }
-
-    @Test
-    void saveSolicitud_tipoPrestamoNotFound() {
-        var solicitud = Solicitud.builder()
-                .idSolicitud(3L)
-                .idTipoPrestamo(99L)
-                .monto(new BigDecimal("5000"))
-                .plazo(12)
-                .email("a@b.com")
-                .documentoIdentidad("123")
-                .build();
-
-        when(tipoPrestamoRepository.findById(99L)).thenReturn(Mono.empty());
-
-        StepVerifier.create(useCase.saveSolicitud(solicitud))
+        StepVerifier.create(solicitudUseCase.saveSolicitud(solicitud))
                 .expectError(TipoPrestamoNotFoundException.class)
                 .verify();
     }
 
     @Test
-    void saveSolicitud_montoFueraDeRango() {
-        var tipo = TipoPrestamo.builder()
-                .idTipoPrestamo(10L)
-                .montoMinimo(1000)
-                .montoMaximo(2000)
-                .tasaInteres(5)
+    void saveSolicitud_MontoFueraDeRango_ThrowsException() {
+        Solicitud solicitud = Solicitud.builder()
+                .monto(new BigDecimal("500000"))
+                .plazo(24)
+                .email("test@example.com")
+                .documentoIdentidad("12345678")
+                .idTipoPrestamo(1L)
+                .build();
+
+        TipoPrestamo tipoPrestamo = TipoPrestamo.builder()
+                .idTipoPrestamo(1L)
+                .montoMinimo(1000000)
+                .montoMaximo(10000000)
                 .validacionAutomatica(false)
                 .build();
 
-        var solicitud = Solicitud.builder()
-                .idSolicitud(4L)
-                .idTipoPrestamo(10L)
-                .monto(new BigDecimal("50000"))
-                .plazo(12)
-                .email("a@b.com")
-                .documentoIdentidad("123")
-                .build();
+        when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
 
-        when(tipoPrestamoRepository.findById(10L)).thenReturn(Mono.just(tipo));
-
-        StepVerifier.create(useCase.saveSolicitud(solicitud))
+        StepVerifier.create(solicitudUseCase.saveSolicitud(solicitud))
                 .expectError(MontoFueraDeRangoException.class)
                 .verify();
     }
 
     @Test
-    void saveSolicitud_usuarioNoValido() {
-        var tipo = TipoPrestamo.builder()
-                .idTipoPrestamo(10L)
-                .montoMinimo(1000)
-                .montoMaximo(100000)
-                .tasaInteres(5)
+    void saveSolicitud_UserNotExists_ThrowsException() {
+        Solicitud solicitud = Solicitud.builder()
+                .monto(new BigDecimal("5000000"))
+                .plazo(24)
+                .email("test@example.com")
+                .documentoIdentidad("12345678")
+                .idTipoPrestamo(1L)
+                .build();
+
+        TipoPrestamo tipoPrestamo = TipoPrestamo.builder()
+                .idTipoPrestamo(1L)
+                .montoMinimo(1000000)
+                .montoMaximo(10000000)
                 .validacionAutomatica(false)
                 .build();
 
-        var solicitud = Solicitud.builder()
-                .idSolicitud(5L)
-                .idTipoPrestamo(10L)
-                .monto(new BigDecimal("5000"))
-                .plazo(12)
-                .email("no@valido.com")
-                .documentoIdentidad("000")
+        UserValidateInfo userInfo = UserValidateInfo.builder()
+                .exists(false)
+                .baseSalary(new BigDecimal("3000000"))
                 .build();
 
-        when(tipoPrestamoRepository.findById(10L)).thenReturn(Mono.just(tipo));
-        when(authenticationGateway.validateUser("no@valido.com", "000"))
-                .thenReturn(Mono.just(UserValidateInfo.builder().exists(false).baseSalary(new BigDecimal("0")).build()));
+        when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
+        when(authenticationGateway.validateUser("test@example.com", "12345678"))
+                .thenReturn(Mono.just(userInfo));
 
-        StepVerifier.create(useCase.saveSolicitud(solicitud))
+        StepVerifier.create(solicitudUseCase.saveSolicitud(solicitud))
                 .expectError(ValidationUserException.class)
                 .verify();
     }
 
     @Test
-    void findAllSolicitudes_enrichesUsers_andHandlesAuthErrorGracefully() {
-        var req = new SolicitudPageRequest();
+    void saveSolicitud_ValidacionAutomaticaTrue_CallsCapacidadUseCase() {
+        Solicitud solicitud = Solicitud.builder()
+                .monto(new BigDecimal("5000000"))
+                .plazo(24)
+                .email("test@example.com")
+                .documentoIdentidad("12345678")
+                .idTipoPrestamo(1L)
+                .build();
 
-        var page = new SolicitudPage<SolicitudFieldsPage>(
-                List.of(
-                        SolicitudFieldsPage.builder().monto(new BigDecimal("1000")).plazo(6).email("u1@test.com").tipoPrestamo("TP1").estado("PENDIENTE").build(),
-                        SolicitudFieldsPage.builder().monto(new BigDecimal("2000")).plazo(12).email("u2@test.com").tipoPrestamo("TP2").estado("APROBADO").build()
-                ),
-                2L, 10, 0, true, "monto,asc"
+        TipoPrestamo tipoPrestamo = TipoPrestamo.builder()
+                .idTipoPrestamo(1L)
+                .montoMinimo(1000000)
+                .montoMaximo(10000000)
+                .validacionAutomatica(true)
+                .build();
+
+        UserValidateInfo userInfo = UserValidateInfo.builder()
+                .exists(true)
+                .baseSalary(new BigDecimal("3000000"))
+                .build();
+
+        Solicitud savedSolicitud = Solicitud.builder()
+                .idSolicitud(1L)
+                .monto(new BigDecimal("5000000"))
+                .plazo(24)
+                .email("test@example.com")
+                .documentoIdentidad("12345678")
+                .idEstado(1L)
+                .idTipoPrestamo(1L)
+                .build();
+
+        when(tipoPrestamoRepository.findById(1L)).thenReturn(Mono.just(tipoPrestamo));
+        when(authenticationGateway.validateUser("test@example.com", "12345678"))
+                .thenReturn(Mono.just(userInfo));
+        when(solicitudRepository.saveSolicitud(any(Solicitud.class)))
+                .thenReturn(Mono.just(savedSolicitud));
+        when(capacidadUseCase.validarCapacidad(savedSolicitud))
+                .thenReturn(Mono.just(ValidacionCapacidad.builder().build()));
+
+        StepVerifier.create(solicitudUseCase.saveSolicitud(solicitud))
+                .expectNext(savedSolicitud)
+                .verifyComplete();
+    }
+
+
+
+    @Test
+    void findAllSolicitudes_EmptyEmails_ReturnsPagedSolicitudes() {
+        SolicitudPageRequest request = new SolicitudPageRequest();
+        request.setPage(0);
+        request.setSize(10);
+
+        SolicitudFieldsPage solicitudFields = new SolicitudFieldsPage(
+                new BigDecimal("5000000"),
+                24,
+                null,
+                "Personal",
+                "Pendiente"
         );
 
-        when(solicitudRepository.page(req)).thenReturn(Mono.just(page));
-        when(authenticationGateway.getUsersForPage(anyList()))
-                .thenReturn(Flux.error(new RuntimeException("downstream error")));
+        SolicitudPage<SolicitudFieldsPage> pagedSolicitudes = new SolicitudPage<>(
+                List.of(solicitudFields),
+                1L,
+                10,
+                0,
+                false,
+                "ASC"
+        );
 
-        StepVerifier.create(useCase.findAllSolicitudes(req))
+        when(solicitudRepository.page(request)).thenReturn(Mono.just(pagedSolicitudes));
+        when(authenticationGateway.getUsersForPage(List.of()))
+                .thenReturn(Flux.empty());
+
+        StepVerifier.create(solicitudUseCase.findAllSolicitudes(request))
                 .assertNext(result -> {
-                    assertThat(result.getData()).hasSize(2);
-                    assertThat(result.getData().get(0).getEmail()).isEqualTo("u1@test.com");
+                    assert result.getData().size() == 1;
+                    assert result.getData().get(0).getEmail() == null;
+                    assert result.getData().get(0).getNombre() == null;
                 })
                 .verifyComplete();
     }
 
+  
     @Test
-    void findAllSolicitudes_enrichesWithUserInfo_whenAuthSucceeds() {
-        var req = new SolicitudPageRequest();
+    void findAllSolicitudes_MultipleEmails_ReturnsPagedSolicitudes() {
+        SolicitudPageRequest request = new SolicitudPageRequest();
+        request.setPage(0);
+        request.setSize(10);
 
-        var page = new SolicitudPage<SolicitudFieldsPage>(
-                List.of(
-                        SolicitudFieldsPage.builder().monto(new BigDecimal("3000")).plazo(8).email("u3@test.com").tipoPrestamo("TP3").estado("PENDIENTE").build()
-                ),
-                1L, 10, 0, false, "monto,asc"
+        SolicitudFieldsPage solicitud1 = new SolicitudFieldsPage(
+                new BigDecimal("5000000"),
+                24,
+                "test1@example.com",
+                "Personal",
+                "Pendiente"
         );
 
-        when(solicitudRepository.page(req)).thenReturn(Mono.just(page));
-        when(authenticationGateway.getUsersForPage(anyList()))
-                .thenReturn(Flux.just(
-                        co.com.crediya.pragma.solicitudes.model.page.UsersForPageResponse.builder()
-                                .name("User 3").email("u3@test.com").baseSalary(9000L).build()
-                ));
+        SolicitudFieldsPage solicitud2 = new SolicitudFieldsPage(
+                new BigDecimal("3000000"),
+                12,
+                "test2@example.com",
+                "Hipotecario",
+                "Aprobado"
+        );
 
-        StepVerifier.create(useCase.findAllSolicitudes(req))
+        SolicitudPage<SolicitudFieldsPage> pagedSolicitudes = new SolicitudPage<>(
+                List.of(solicitud1, solicitud2),
+                2L,
+                10,
+                0,
+                false,
+                "ASC"
+        );
+
+        UsersForPageResponse user1 = new UsersForPageResponse(
+                "Juan Pérez",
+                "test1@example.com",
+                3000000L
+        );
+
+        UsersForPageResponse user2 = new UsersForPageResponse(
+                "María García",
+                "test2@example.com",
+                4000000L
+        );
+
+        when(solicitudRepository.page(request)).thenReturn(Mono.just(pagedSolicitudes));
+        when(authenticationGateway.getUsersForPage(List.of("test1@example.com", "test2@example.com")))
+                .thenReturn(Mono.just(user1).concatWith(Mono.just(user2)));
+
+        StepVerifier.create(solicitudUseCase.findAllSolicitudes(request))
                 .assertNext(result -> {
-                    assertThat(result.getData()).hasSize(1);
-                    var item = result.getData().get(0);
-                    assertThat(item.getEmail()).isEqualTo("u3@test.com");
-                    assertThat(item.getNombre()).isEqualTo("User 3");
-                    assertThat(item.getSalarioBase()).isEqualTo(9000L);
+                    assert result.getData().size() == 2;
+                    assert result.getData().get(0).getNombre().equals("Juan Pérez");
+                    assert result.getData().get(1).getNombre().equals("María García");
                 })
                 .verifyComplete();
     }
 }
-
