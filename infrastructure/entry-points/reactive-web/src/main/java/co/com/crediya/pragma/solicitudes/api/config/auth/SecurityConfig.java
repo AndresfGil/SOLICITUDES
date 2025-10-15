@@ -43,8 +43,8 @@ public class SecurityConfig {
                 )
                 .authorizeExchange(ex -> ex
                         // abre lo que deba estar público
-                        .pathMatchers(HttpMethod.GET, "/actuator/health").permitAll()
-                        
+                        .pathMatchers(HttpMethod.GET, "/actuator/health", "solicitudes/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness").permitAll()
+
                         // Swagger/OpenAPI documentation
                         .pathMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .pathMatchers("/v3/api-docs/**", "/api-docs/**").permitAll()

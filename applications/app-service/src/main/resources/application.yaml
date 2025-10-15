@@ -24,6 +24,7 @@ security:
 app:
   issuer: "${JWT_ISSUER:PowerUp}"
   audience: "PowerUp-API"
+  publicPaths: /h2/**,/v3/api-docs/**,/v3/api-docs/swagger-config,/swagger-ui.html,/swagger-ui/**,/webjars/**,/actuator/health,/solicitudes/actuator/health,/actuator/health/liveness,/actuator/health/readiness
 springdoc:
   api-docs:
     enabled: true
@@ -52,19 +53,14 @@ management:
     web:
       exposure:
         include: "health,prometheus"
+      base-path: /solicitudes/actuator
   endpoint:
     health:
       probes:
         enabled: true
 cors:
   allowed-origins: "*"
-logging:
-  pattern:
-    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSS-05:00}  %5p %d{pid} --- [%15.15t] %-40.40logger{39}\
-      \ : %m%n"
-  level:
-    co.com.crediya.pragma.solicitudes: "INFO"
-    org.springframework.web.reactive.function.client: "DEBUG"
+
 adapter:
   sqs:
     region: "us-east-2"
